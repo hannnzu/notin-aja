@@ -1,14 +1,36 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTaskStore } from '../store/useTaskStore';
+import { useAuthStore } from '../store/useAuthStore';
+import { isTaskToday } from '../utils/dateUtils';
 
 export default function TopNav() {
-  const { searchQuery, setSearchQuery } = useTaskStore();
+  const { tasks, searchQuery, setSearchQuery, searchTasksServerSide } = useTaskStore();
+  const { user, signOut } = useAuthStore();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
+
+  // Aggregate notifications
+  const urgentTasks = tasks.filter(t => !t.isArchived && !t.isCompleted && t.priority === 'Prioritas Tinggi');
+  const todayTasks = tasks.filter(t => !t.isArchived && !t.isCompleted && isTaskToday(t.dueDate));
+  const recentOverdue = tasks.filter(t => !t.isArchived && !t.isCompleted && t.isOverdue);
+
+  const notificationsCount = urgentTasks.length + todayTasks.length + recentOverdue.length;
+
+  // Only maintain an unread badge if there are legitimate system alerts
+  const [hasUnreadAlerts, setHasUnreadAlerts] = useState(false);
+
+  useEffect(() => {
+    if (notificationsCount > 0) setHasUnreadAlerts(true);
+  }, [notificationsCount]);
   const navRef = useRef();
   const navigate = useNavigate();
   const location = useLocation();
+
+  const handleLogout = async () => {
+    await signOut();
+    navigate('/login');
+  };
 
   const handleSearchChange = (e) => {
     setSearchQuery(e.target.value);
@@ -16,6 +38,17 @@ export default function TopNav() {
       navigate('/tasks');
     }
   };
+
+  // Debounced Server-side Search
+  useEffect(() => {
+    if (!searchQuery.trim()) return;
+
+    const timeoutId = setTimeout(() => {
+      searchTasksServerSide(searchQuery);
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery, searchTasksServerSide]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -46,69 +79,108 @@ export default function TopNav() {
       </div>
       <div className="flex items-center gap-3">
         <div className="relative">
-          <button 
-            onClick={() => { setShowNotifications(!showNotifications); setShowProfile(false); }}
+          <button
+            onClick={() => {
+              setShowNotifications(!showNotifications);
+              setShowProfile(false);
+              setHasUnreadAlerts(false);
+            }}
             className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg relative transition-colors"
           >
             <span className="material-symbols-outlined">notifications</span>
-            <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-slate-900"></span>
+            {hasUnreadAlerts && (
+              <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-slate-900 transition-opacity"></span>
+            )}
           </button>
-          
+
           {showNotifications && (
             <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-slate-900 rounded-xl shadow-lg border border-slate-200 dark:border-slate-800 py-2 z-50">
-              <div className="px-4 py-2 border-b border-slate-100 dark:border-slate-800">
+              <div className="px-4 py-2 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
                 <h3 className="font-bold text-sm">Notifikasi</h3>
+                <span className="text-xs bg-primary/10 text-primary font-bold px-2 py-0.5 rounded-full">{notificationsCount} Baru</span>
               </div>
               <div className="max-h-[300px] overflow-y-auto">
-                <div className="px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer border-b border-slate-50 dark:border-slate-800/50">
-                  <p className="text-sm font-medium">Pengingat Tugas</p>
-                  <p className="text-xs text-slate-500 mt-1">Jangan lupa siapkan laporan mingguan besok.</p>
-                  <p className="text-[10px] text-slate-400 mt-2">10 menit yang lalu</p>
-                </div>
-                <div className="px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer">
-                  <p className="text-sm font-medium">Tim Pemasaran</p>
-                  <p className="text-xs text-slate-500 mt-1">Sarah menambahkan tugas baru ke proyek Anda.</p>
-                  <p className="text-[10px] text-slate-400 mt-2">1 jam yang lalu</p>
-                </div>
+                {notificationsCount === 0 ? (
+                  <div className="p-4 text-center text-slate-500 text-sm">Belum ada peringatan sistem hari ini.</div>
+                ) : (
+                  <>
+                    {urgentTasks.length > 0 && (
+                      <div className="px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors border-b border-slate-50 dark:border-slate-800/50">
+                        <div className="flex items-center gap-2 text-red-500 mb-1">
+                          <span className="material-symbols-outlined text-sm">priority_high</span>
+                          <p className="text-sm font-bold">Prioritas Tinggi</p>
+                        </div>
+                        <p className="text-xs text-slate-500">Anda memiliki {urgentTasks.length} tugas merah yang harus segera dieksekusi.</p>
+                      </div>
+                    )}
+                    {todayTasks.length > 0 && (
+                      <div className="px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors border-b border-slate-50 dark:border-slate-800/50">
+                        <div className="flex items-center gap-2 text-primary mb-1">
+                          <span className="material-symbols-outlined text-sm">today</span>
+                          <p className="text-sm font-bold">Agenda Hari Ini</p>
+                        </div>
+                        <p className="text-xs text-slate-500">Jangan lupa tuntaskan {todayTasks.length} tugas yang dijadwalkan hari ini!</p>
+                      </div>
+                    )}
+                    {recentOverdue.length > 0 && (
+                      <div className="px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+                        <div className="flex items-center gap-2 text-amber-500 mb-1">
+                          <span className="material-symbols-outlined text-sm">warning</span>
+                          <p className="text-sm font-bold">Tenggat Terlewat</p>
+                        </div>
+                        <p className="text-xs text-slate-500">Waduh! Ada {recentOverdue.length} tugas yang sudah terlambat dari jadwal.</p>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             </div>
           )}
         </div>
 
         <div className="h-8 w-[1px] bg-slate-200 dark:bg-slate-800 mx-2"></div>
-        
+
         <div className="relative">
-          <button 
+          <button
             onClick={() => { setShowProfile(!showProfile); setShowNotifications(false); }}
             className="flex items-center gap-3 pl-2 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 p-1 pr-3 rounded-xl transition-colors"
           >
             <div className="text-right hidden sm:block">
-              <p className="text-sm font-bold leading-none">Alex Johnson</p>
-              <p className="text-[10px] text-slate-500 uppercase tracking-wider mt-1">Pemimpin Proyek</p>
+              <p className="text-sm font-bold leading-none">{user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Member'}</p>
+              <p className="text-[10px] text-slate-500 uppercase tracking-wider mt-1">{user?.user_metadata?.role || 'Pengguna'}</p>
             </div>
             <div className="w-10 h-10 rounded-full bg-slate-200 bg-cover bg-center border-2 border-white dark:border-slate-800 overflow-hidden shrink-0 shadow-sm">
-              <img 
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuBtCNm5XU8xqF5-mUdth8gxnZf2LQWoVmEXQBkIywKxVoSfGwZzO6l29COIj51_S2I7isYh69rq5YO1g6D-skQf2VrGM2JsF_Egllx06EWj5mZZlCY2ZQNNfRgANQaux5kMUU0xtNocmI9oOkZwZrd9nsGQrGH48dJUd9gm3c_Z4q2GdoJ2WIvHmJoz2FUn4o8MKOYYJNuja37uG33Fd_bTBkVCHrUECZTTv7km_-kiLvXWN3-WFBg3UFtk4YtsqxZn_Lt6fuZvgEw" 
-                alt="User profile" 
-                className="w-full h-full object-cover" 
-              />
+              {user?.user_metadata?.avatar_url ? (
+                <img
+                  src={user.user_metadata.avatar_url}
+                  alt="User profile"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full bg-primary flex items-center justify-center text-white font-bold text-lg">
+                  {(user?.email || 'U')[0].toUpperCase()}
+                </div>
+              )}
             </div>
           </button>
 
           {showProfile && (
             <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-slate-900 rounded-xl shadow-lg border border-slate-200 dark:border-slate-800 py-2 z-50">
               <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 mb-2">
-                <p className="text-sm font-bold">Alex Johnson</p>
-                <p className="text-xs text-slate-500">alex@example.com</p>
+                <p className="text-sm font-bold">{user?.user_metadata?.full_name || 'My Account'}</p>
+                <p className="text-xs text-slate-500 truncate">{user?.email}</p>
               </div>
-              <button 
+              <button
                 onClick={() => { navigate('/settings'); setShowProfile(false); }}
                 className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-2"
               >
                 <span className="material-symbols-outlined text-[18px]">settings</span>
                 Pengaturan
               </button>
-              <button className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-2">
+              <button
+                onClick={handleLogout}
+                className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-2"
+              >
                 <span className="material-symbols-outlined text-[18px]">logout</span>
                 Keluar
               </button>

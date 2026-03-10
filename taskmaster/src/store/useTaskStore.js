@@ -1,91 +1,221 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import { v4 as uuidv4 } from 'uuid';
+import { supabase } from '../lib/supabase';
+import { useAuthStore } from './useAuthStore';
+import { isTaskOverdue } from '../utils/dateUtils';
 
-const initialTasks = [
-  {
-    id: uuidv4(),
-    title: 'Selesaikan Dek Kampanye Pemasaran Q4',
-    priority: 'Prioritas Tinggi',
-    dueDate: 'Hari Ini',
-    project: 'Pekerjaan',
-    isCompleted: false,
-    isOverdue: false,
-    isArchived: false,
-    dateCreatedAt: new Date().toISOString()
-  },
-  {
-    id: uuidv4(),
-    title: 'Tinjau umpan balik sprint tim',
-    priority: 'Menengah',
-    dueDate: '25 Okt',
-    project: 'Pekerjaan',
-    isCompleted: false,
-    isOverdue: false,
-    isArchived: false,
-    dateCreatedAt: new Date().toISOString()
-  },
-  {
-    id: uuidv4(),
-    title: 'Draf email pembaruan mingguan',
-    priority: 'Rendah',
-    dueDate: 'Selesai',
-    project: 'Pekerjaan',
-    isCompleted: true,
-    isOverdue: false,
-    isArchived: false,
-    dateCreatedAt: new Date().toISOString()
-  },
-  {
-    id: uuidv4(),
-    title: 'Pesan penerbangan untuk liburan',
-    priority: 'Prioritas Tinggi',
-    dueDate: '19 Okt',
-    project: 'Pribadi',
-    isCompleted: false,
-    isOverdue: true,
-    isArchived: false,
-    dateCreatedAt: new Date().toISOString()
-  },
-];
+export const useTaskStore = create((set, get) => ({
+  tasks: [],
+  isLoading: false,
+  error: null,
+  subscription: null,
 
-export const useTaskStore = create(
-  persist(
-    (set) => ({
-      tasks: initialTasks,
-  
+  // Real-time Subscription Setup
+  setupSubscription: () => {
+    const user = useAuthStore.getState().user;
+    if (!user) return;
+
+    if (get().subscription) return; // already subscribed
+
+    const channel = supabase
+      .channel(`public:tasks:${user.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks', filter: `user_id=eq.${user.id}` }, (payload) => {
+        const { eventType, new: newRecord, old: oldRecord } = payload;
+
+        const mapTask = (t) => ({
+          id: t.id,
+          title: t.title,
+          priority: t.priority,
+          dueDate: t.due_date,
+          category: t.category,
+          isCompleted: t.is_completed,
+          isArchived: t.is_archived,
+          isOverdue: isTaskOverdue(t.due_date, t.is_completed),
+          dateCreatedAt: t.created_at
+        });
+
+        set((state) => {
+          let updatedTasks = [...state.tasks];
+          if (eventType === 'INSERT') {
+            // Avoid duplicate if optimistic UI already added it (by checking ID)
+            if (!updatedTasks.some(t => t.id === newRecord.id)) {
+              updatedTasks = [mapTask(newRecord), ...updatedTasks];
+            }
+          } else if (eventType === 'UPDATE') {
+            updatedTasks = updatedTasks.map(t => t.id === newRecord.id ? mapTask(newRecord) : t);
+          } else if (eventType === 'DELETE') {
+            updatedTasks = updatedTasks.filter(t => t.id !== oldRecord.id);
+          }
+          return { tasks: updatedTasks };
+        });
+      })
+      .subscribe();
+
+    set({ subscription: channel });
+  },
+
+  teardownSubscription: () => {
+    const sub = get().subscription;
+    if (sub) {
+      supabase.removeChannel(sub);
+      set({ subscription: null });
+    }
+  },
+
+  // Fetch from Supabase
+  fetchTasks: async (includeArchived = false) => {
+    const user = useAuthStore.getState().user;
+    if (!user) return;
+
+    set({ isLoading: true, error: null });
+
+    // Build query efficiently
+    let query = supabase
+      .from('tasks')
+      .select('*')
+      .eq('user_id', user.id);
+
+    if (!includeArchived) {
+      query = query.eq('is_archived', false);
+    } else {
+      query = query.eq('is_archived', true);
+    }
+
+    const { data: tasks, error } = await query.order('created_at', { ascending: false });
+
+    if (error) {
+      set({ error: error.message, isLoading: false });
+    } else {
+      // Map Supabase casing to Frontend format
+      const mappedTasks = tasks.map(t => ({
+        id: t.id,
+        title: t.title,
+        priority: t.priority,
+        dueDate: t.due_date,
+        category: t.category,
+        isCompleted: t.is_completed,
+        isArchived: t.is_archived,
+        isOverdue: isTaskOverdue(t.due_date, t.is_completed),
+        dateCreatedAt: t.created_at
+      }));
+      set({ tasks: mappedTasks, isLoading: false });
+
+      // Initialize Real-time Listener if not already
+      get().setupSubscription();
+    }
+  },
+
   // Actions
-  addTask: (newTask) => set((state) => ({
-    tasks: [...state.tasks, { ...newTask, id: uuidv4(), isCompleted: false, isArchived: false, dateCreatedAt: new Date().toISOString() }]
-  })),
+  addTask: async (newTask) => {
+    const user = useAuthStore.getState().user;
+    if (!user) return;
+    set({ isLoading: true, error: null });
 
-  editTask: (id, updatedTask) => set((state) => ({
-    tasks: state.tasks.map(task =>
-      task.id === id ? { ...task, ...updatedTask } : task
-    )
-  })),
-  
-  toggleComplete: (id) => set((state) => ({
-    tasks: state.tasks.map(task => 
-      task.id === id ? { ...task, isCompleted: !task.isCompleted } : task
-    )
-  })),
-  
-  archiveTask: (id) => set((state) => ({
-    tasks: state.tasks.map(task =>
-      task.id === id ? { ...task, isArchived: true } : task
-    )
-  })),
+    const dbTask = {
+      user_id: user.id,
+      title: newTask.title,
+      category: newTask.category || newTask.project,
+      priority: newTask.priority,
+      due_date: newTask.dueDate,
+    };
 
-  unarchiveTask: (id) => set((state) => ({
-    tasks: state.tasks.map(task =>
-      task.id === id ? { ...task, isArchived: false } : task
-    )
-  })),
+    const { data, error } = await supabase
+      .from('tasks')
+      .insert([dbTask])
+      .select()
+      .single();
 
-  deleteTaskPermanently: (id) => set((state) => ({
-    tasks: state.tasks.filter(task => task.id !== id)
-  })),
+    if (error) {
+      set({ error: error.message, isLoading: false });
+    } else {
+      const addedTask = {
+        id: data.id,
+        title: data.title,
+        priority: data.priority,
+        dueDate: data.due_date,
+        category: data.category,
+        isCompleted: data.is_completed,
+        isArchived: data.is_archived,
+        isOverdue: isTaskOverdue(data.due_date, data.is_completed),
+        dateCreatedAt: data.created_at
+      };
+      set((state) => ({
+        tasks: [addedTask, ...state.tasks],
+        isLoading: false
+      }));
+    }
+  },
+
+  editTask: async (id, updatedTask) => {
+    set({ isLoading: true, error: null });
+
+    // Map Frontend keys back to db columns
+    const dbUpdate = {};
+    if (updatedTask.title !== undefined) dbUpdate.title = updatedTask.title;
+    if (updatedTask.category !== undefined) dbUpdate.category = updatedTask.category;
+    else if (updatedTask.project !== undefined) dbUpdate.category = updatedTask.project;
+    if (updatedTask.priority !== undefined) dbUpdate.priority = updatedTask.priority;
+    if (updatedTask.dueDate !== undefined) dbUpdate.due_date = updatedTask.dueDate;
+
+    const { error } = await supabase.from('tasks').update(dbUpdate).eq('id', id);
+
+    if (error) {
+      set({ error: error.message, isLoading: false });
+    } else {
+      set((state) => ({
+        tasks: state.tasks.map(task => task.id === id ? { ...task, ...updatedTask } : task),
+        isLoading: false
+      }));
+    }
+  },
+
+  toggleComplete: async (id) => {
+    const task = get().tasks.find(t => t.id === id);
+    if (!task) return;
+
+    // Optimistic UI Update 
+    const previousTasks = [...get().tasks];
+    set((state) => ({
+      tasks: state.tasks.map(t => {
+        if (t.id === id) {
+          const completed = !t.isCompleted;
+          return { ...t, isCompleted: completed, isOverdue: isTaskOverdue(t.dueDate, completed) };
+        }
+        return t;
+      })
+    }));
+
+    const { error } = await supabase.from('tasks').update({ is_completed: !task.isCompleted }).eq('id', id);
+    if (error) {
+      set({ error: error.message, tasks: previousTasks });
+    }
+  },
+
+  archiveTask: async (id) => {
+    const previousTasks = [...get().tasks];
+    set((state) => ({ tasks: state.tasks.map(t => t.id === id ? { ...t, isArchived: true } : t) }));
+
+    const { error } = await supabase.from('tasks').update({ is_archived: true }).eq('id', id);
+    if (error) set({ error: error.message, tasks: previousTasks });
+  },
+
+  unarchiveTask: async (id) => {
+    const previousTasks = [...get().tasks];
+    set((state) => ({ tasks: state.tasks.map(t => t.id === id ? { ...t, isArchived: false } : t) }));
+
+    const { error } = await supabase.from('tasks').update({ is_archived: false }).eq('id', id);
+    if (error) set({ error: error.message, tasks: previousTasks });
+  },
+
+  deleteTaskPermanently: async (id) => {
+    // Optimistic UI for Delete
+    const previousTasks = [...get().tasks];
+    set((state) => ({ tasks: state.tasks.filter(t => t.id !== id) }));
+
+    const { error } = await supabase.from('tasks').delete().eq('id', id);
+    if (error) {
+      set({ error: error.message, tasks: previousTasks });
+    }
+  },
 
   // Filtering & Setup
   currentFilter: 'inbox', // 'inbox', 'today', 'important'
@@ -96,16 +226,47 @@ export const useTaskStore = create(
   setCategory: (category) => set({ currentCategory: category, currentFilter: 'all' }),
   setSearchQuery: (query) => set({ searchQuery: query }),
 
+  // Server-Side Search
+  searchTasksServerSide: async (query) => {
+    const user = useAuthStore.getState().user;
+    if (!user || !query.trim()) return;
+
+    const { data: searchResults, error } = await supabase
+      .from('tasks')
+      .select('*')
+      .eq('user_id', user.id)
+      .ilike('title', `%${query}%`)
+      .limit(20);
+
+    if (!error && searchResults) {
+      const mappedResults = searchResults.map(t => ({
+        id: t.id,
+        title: t.title,
+        priority: t.priority,
+        dueDate: t.due_date,
+        category: t.category,
+        isCompleted: t.is_completed,
+        isArchived: t.is_archived,
+        isOverdue: isTaskOverdue(t.due_date, t.is_completed),
+        dateCreatedAt: t.created_at
+      }));
+
+      set(state => {
+        const mergedTasks = [...state.tasks];
+        mappedResults.forEach(mappedRec => {
+          if (!mergedTasks.some(existing => existing.id === mappedRec.id)) {
+            mergedTasks.push(mappedRec);
+          }
+        });
+        return { tasks: mergedTasks };
+      });
+    }
+  },
+
   // Modal State
   isModalOpen: false,
   editingTask: null, // null means "Create Mode", otherwise contains task object
 
-      openModal: (task = null) => set({ isModalOpen: true, editingTask: task }),
-      closeModal: () => set({ isModalOpen: false, editingTask: null })
-    }),
-    {
-      name: 'notin-aja-storage', // unique name for localStorage key
-      partialize: (state) => ({ tasks: state.tasks }), // only persist tasks
-    }
-  )
-);
+  openModal: (task = null) => set({ isModalOpen: true, editingTask: task }),
+  closeModal: () => set({ isModalOpen: false, editingTask: null })
+}));

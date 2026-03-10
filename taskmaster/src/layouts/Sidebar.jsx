@@ -92,21 +92,23 @@ export default function Sidebar() {
           </h3>
           <button
             onClick={() => handleFilterClick('inbox')}
-            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg font-medium transition-colors ${isTasksPage && currentFilter === 'inbox' && currentCategory === 'all' ? 'text-primary bg-primary/10' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+            className={`w-full flex items-center px-3 py-2 rounded-lg font-medium transition-colors ${isTasksPage && currentFilter === 'inbox' && currentCategory === 'all' ? 'text-primary bg-primary/10' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
           >
-            <span className="material-symbols-outlined text-[20px]">inbox</span>
-            <span className="flex-1 text-sm text-left">Kotak Masuk</span>
-            <span className={`text-xs px-1.5 py-0.5 rounded-full ${isTasksPage && currentFilter === 'inbox' && currentCategory === 'all' ? 'bg-primary/20' : 'bg-slate-100 dark:bg-slate-800'}`}>
+            <span className="material-symbols-outlined text-[20px] mr-3">inbox</span>
+            <span className="text-sm">Kotak Masuk</span>
+            <span className={`ml-auto text-xs px-2 py-0.5 rounded-full ${isTasksPage && currentFilter === 'inbox' && currentCategory === 'all' ? 'bg-primary/20 text-primary font-bold' : 'bg-slate-100 dark:bg-slate-800'}`}>
               {inboxCount}
             </span>
           </button>
           <button
             onClick={() => handleFilterClick('today')}
-            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg font-medium mt-1 transition-colors ${isTasksPage && currentFilter === 'today' && currentCategory === 'all' ? 'text-primary bg-primary/10' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+            className={`w-full flex items-center px-3 py-2 rounded-lg font-medium mt-1 transition-colors ${isTasksPage && currentFilter === 'today' && currentCategory === 'all' ? 'text-primary bg-primary/10' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
           >
-            <span className="material-symbols-outlined text-[20px]">calendar_today</span>
-            <span className="flex-1 text-sm text-left">Hari Ini</span>
-            <span className="text-xs text-slate-400">{todayCount}</span>
+            <span className="material-symbols-outlined text-[20px] mr-3">calendar_today</span>
+            <span className="text-sm">Hari Ini</span>
+            <span className={`ml-auto text-xs px-2 py-0.5 rounded-full ${isTasksPage && currentFilter === 'today' && currentCategory === 'all' ? 'bg-primary/20 text-primary font-bold' : 'bg-slate-100 dark:bg-slate-800'}`}>
+              {todayCount}
+            </span>
           </button>
           <button
             onClick={() => handleFilterClick('important')}

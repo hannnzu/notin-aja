@@ -1,15 +1,15 @@
 import { useTaskStore } from '../store/useTaskStore';
+import { formatTaskDateDisplay } from '../utils/dateUtils';
 
 export default function TaskItem({
   id,
   title,
   priority,
   dueDate,
-  project,
   category,
   isCompleted,
-  isOverdue,
   isArchived,
+  isOverdue,
 }) {
   const toggleComplete = useTaskStore(state => state.toggleComplete);
   const archiveTask = useTaskStore(state => state.archiveTask);
@@ -33,16 +33,7 @@ export default function TaskItem({
     }
   };
 
-  const getFormattedDate = (dateStr) => {
-    if (!dateStr) return 'Tidak diatur';
-    if (dateStr === 'Hari Ini' || dateStr === 'Selesai') return dateStr;
-    
-    // Parse 'YYYY-MM-DD'
-    const d = new Date(dateStr);
-    if (isNaN(d)) return dateStr;
-    
-    return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
-  };
+  const formattedDate = formatTaskDateDisplay(dueDate);
 
   return (
     <div className="task-row group bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center gap-4 transition-all hover:shadow-md hover:border-primary/30">
@@ -57,9 +48,8 @@ export default function TaskItem({
       <div className={`flex-1 min-w-0 ${isCompleted ? 'opacity-60' : ''}`}>
         <div className="flex items-center gap-3 mb-1">
           <h4
-            className={`text-sm font-semibold text-slate-900 dark:text-white truncate ${
-              isCompleted ? 'line-through' : ''
-            }`}
+            className={`text-sm font-semibold text-slate-900 dark:text-white truncate ${isCompleted ? 'line-through' : ''
+              }`}
           >
             {title}
           </h4>
@@ -75,36 +65,35 @@ export default function TaskItem({
         </div>
         <div className="flex items-center gap-4 text-xs text-slate-500">
           <span
-            className={`flex items-center gap-1 ${
-              isOverdue ? 'text-red-500 font-medium' : ''
-            }`}
+            className={`flex items-center gap-1 ${isOverdue ? 'text-red-500 font-medium' : ''
+              }`}
           >
             <span className="material-symbols-outlined text-sm">
               {isCompleted ? 'check_circle' : isOverdue ? 'warning' : 'calendar_month'}
             </span>
-            {isCompleted ? 'Selesai' : isOverdue ? `Terlambat: ${getFormattedDate(dueDate)}` : getFormattedDate(dueDate)}
+            {isCompleted ? 'Selesai' : isOverdue ? `Terlambat: ${formattedDate}` : formattedDate}
           </span>
-          {project && (
+          {category && (
             <span className="flex items-center gap-1">
               <span className="material-symbols-outlined text-sm">
-                {category === 'Work' ? 'account_tree' : 'flag'}
+                {category === 'Pekerjaan' ? 'account_tree' : category === 'Lainnya' ? 'flag' : category === 'Belanja' ? 'shopping_cart' : 'person'}
               </span>
-              {project}
+              {category}
             </span>
           )}
         </div>
       </div>
       <div className="task-actions opacity-0 transition-opacity flex items-center gap-1">
         {!isArchived && (
-          <button 
-            onClick={() => openModal({ id, title, priority, dueDate, project, category, isCompleted, isOverdue, isArchived })}
-            className="p-2 text-slate-400 hover:text-primary hover:bg-primary/10 rounded-lg"
+          <button
+            onClick={() => openModal({ id, title, priority, dueDate, category, isCompleted, isArchived })}
+            className="p-2 text-slate-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
           >
             <span className="material-symbols-outlined text-xl">edit</span>
           </button>
         )}
         {isArchived && (
-          <button 
+          <button
             className="p-2 text-slate-400 hover:text-green-500 hover:bg-green-50 rounded-lg"
             onClick={() => unarchiveTask(id)}
             title="Kembalikan Tugas"
@@ -112,7 +101,7 @@ export default function TaskItem({
             <span className="material-symbols-outlined text-xl">unarchive</span>
           </button>
         )}
-        <button 
+        <button
           className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg"
           onClick={() => isArchived ? deleteTaskPermanently(id) : archiveTask(id)}
           title={isArchived ? "Hapus Permanen" : "Arsipkan Tugas"}
