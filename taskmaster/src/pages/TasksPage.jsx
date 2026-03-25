@@ -1,17 +1,29 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import TaskList from '../components/TaskList';
 import { useTaskStore } from '../store/useTaskStore';
 import { isTaskToday } from '../utils/dateUtils';
-import { startOfMonth, endOfMonth, eachDayOfInterval, format, isToday, startOfWeek, endOfWeek, isSameMonth } from 'date-fns';
+import { startOfMonth, endOfMonth, eachDayOfInterval, format, isToday, startOfWeek, endOfWeek, isSameMonth, addMonths, subMonths } from 'date-fns';
 import idLocale from 'date-fns/locale/id';
 
 export default function TasksPage() {
   const { tasks, fetchTasks, isLoading, error, currentFilter, currentCategory, searchQuery, openModal } = useTaskStore();
   const [showCalendar, setShowCalendar] = useState(false);
+  const [currentCalendarMonth, setCurrentCalendarMonth] = useState(new Date());
+  const calendarRef = useRef(null);
 
   useEffect(() => {
     fetchTasks();
   }, [fetchTasks]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (calendarRef.current && !calendarRef.current.contains(event.target)) {
+        setShowCalendar(false);
+      }
+    };
+    if (showCalendar) document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showCalendar]);
 
   const getFilteredTasks = () => {
     let filtered = tasks.filter(t => !t.isArchived);
@@ -56,11 +68,14 @@ export default function TasksPage() {
 
   // Calendar Logic
   const currentDate = new Date();
-  const monthStart = startOfMonth(currentDate);
+  const monthStart = startOfMonth(currentCalendarMonth);
   const monthEnd = endOfMonth(monthStart);
   const startDate = startOfWeek(monthStart, { weekStartsOn: 1 });
   const endDate = endOfWeek(monthEnd, { weekStartsOn: 1 });
   const calendarDays = eachDayOfInterval({ start: startDate, end: endDate });
+
+  const nextMonth = () => setCurrentCalendarMonth(addMonths(currentCalendarMonth, 1));
+  const prevMonth = () => setCurrentCalendarMonth(subMonths(currentCalendarMonth, 1));
 
   return (
     <div className="max-w-[1440px] mx-auto flex gap-6 p-6 w-full relative">
@@ -186,7 +201,7 @@ export default function TasksPage() {
               })
             )}
           </div>
-          <div className="relative">
+          <div className="relative" ref={calendarRef}>
             <button
               onClick={() => setShowCalendar(!showCalendar)}
               className="w-full mt-4 text-xs font-semibold text-primary hover:underline flex justify-center items-center gap-1"
@@ -196,31 +211,43 @@ export default function TasksPage() {
             </button>
 
             {showCalendar && (
-              <div className="absolute top-full mt-2 right-0 w-[260px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl p-3 z-50 animate-in fade-in zoom-in slide-in-from-top-2 duration-200">
-                <p className="text-center font-bold text-sm mb-2 capitalize">{format(currentDate, 'MMMM yyyy', { locale: idLocale })}</p>
+              <div className="absolute top-full mt-2 right-0 w-[280px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-4 z-50 animate-in fade-in zoom-in slide-in-from-top-2 duration-200">
+                <div className="flex items-center justify-between mb-4">
+                  <button onClick={(e) => { e.stopPropagation(); prevMonth(); }} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 transition-colors flex items-center justify-center">
+                    <span className="material-symbols-outlined text-sm">chevron_left</span>
+                  </button>
+                  <p className="text-center font-bold text-sm capitalize">{format(currentCalendarMonth, 'MMMM yyyy', { locale: idLocale })}</p>
+                  <button onClick={(e) => { e.stopPropagation(); nextMonth(); }} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 transition-colors flex items-center justify-center">
+                    <span className="material-symbols-outlined text-sm">chevron_right</span>
+                  </button>
+                </div>
                 <div className="grid grid-cols-7 gap-1 text-center mb-2">
                   {['Sn', 'Sl', 'Rb', 'Km', 'Jm', 'Sb', 'Mg'].map(day => (
-                    <div key={day} className="text-[10px] font-bold text-slate-400">{day}</div>
+                    <div key={day} className="text-[10px] font-bold text-slate-400 py-1">{day}</div>
                   ))}
                 </div>
                 <div className="grid grid-cols-7 gap-1">
                   {calendarDays.map((day, i) => {
                     const isCurrentMonth = isSameMonth(day, monthStart);
                     const isDayToday = isToday(day);
-                    // Check if there's any active task on this day
-                    const hasTask = tasks.some(t => !t.isArchived && !t.isCompleted && t.dueDate && t.dueDate === format(day, 'yyyy-MM-dd'));
+                    
+                    const dayTasks = tasks.filter(t => !t.isArchived && !t.isCompleted && t.dueDate && t.dueDate === format(day, 'yyyy-MM-dd'));
+                    const hasTask = dayTasks.length > 0;
+                    const hasUrgent = dayTasks.some(t => t.priority === 'Prioritas Tinggi');
 
                     return (
                       <div
                         key={i}
                         className={`
-                          flex items-center justify-center h-8 w-8 rounded-full text-xs font-medium mx-auto
-                          ${!isCurrentMonth ? 'text-slate-300 dark:text-slate-600' : 'text-slate-700 dark:text-slate-300'}
-                          ${isDayToday ? 'bg-primary text-white font-bold' : ''}
-                          ${hasTask && !isDayToday && isCurrentMonth ? 'border-2 border-primary/30 text-primary font-bold bg-primary/5' : ''}
+                          relative flex flex-col items-center justify-center h-8 w-8 rounded-lg text-xs hover:bg-slate-50 dark:hover:bg-slate-800 cursor-default transition-colors mx-auto
+                          ${!isCurrentMonth ? 'text-slate-300 dark:text-slate-600 font-medium' : 'text-slate-700 dark:text-slate-200 font-bold'}
+                          ${isDayToday ? 'ring-2 ring-primary ring-offset-1 dark:ring-offset-slate-900 text-primary' : ''}
                         `}
                       >
-                        {format(day, 'd')}
+                        <span className="z-10">{format(day, 'd')}</span>
+                        {hasTask && (
+                          <div className={`absolute bottom-1 w-1 h-1 rounded-full ${hasUrgent ? 'bg-red-500' : 'bg-primary'}`}></div>
+                        )}
                       </div>
                     );
                   })}

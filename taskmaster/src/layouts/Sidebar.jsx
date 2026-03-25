@@ -29,8 +29,8 @@ export default function Sidebar() {
   return (
     <aside className="w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col shrink-0">
       <div className="p-6 flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-white">
-          <span className="material-symbols-outlined">grid_view</span>
+        <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-white overflow-hidden shrink-0 shadow-sm">
+          <img src="/notin.png" alt="Notin, Aja! Logo" className="w-full h-full object-cover" />
         </div>
         <div>
           <h1 className="text-lg font-bold leading-none">Notin, Aja!</h1>

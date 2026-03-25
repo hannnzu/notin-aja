@@ -31,8 +31,8 @@ export default function ForgotPasswordPage() {
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-background-dark flex flex-col justify-center items-center p-6 relative">
             <div className="absolute top-8 left-8 flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center -rotate-6">
-                    <span className="material-symbols-outlined text-white text-xl">done_all</span>
+                <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center -rotate-6 overflow-hidden shadow-sm">
+                    <img src="/notin.png" alt="Logo" className="w-full h-full object-cover" />
                 </div>
                 <span className="font-display font-black text-xl tracking-tight text-slate-800 dark:text-white">
                     Notin, Aja!
