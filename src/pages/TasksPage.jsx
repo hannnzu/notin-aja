@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import TaskList from '../components/TaskList';
+import KanbanBoard from '../components/KanbanBoard';
 import { useTaskStore } from '../store/useTaskStore';
 import { isTaskToday } from '../utils/dateUtils';
 import { startOfMonth, endOfMonth, eachDayOfInterval, format, isToday, startOfWeek, endOfWeek, isSameMonth, addMonths, subMonths } from 'date-fns';
@@ -11,6 +12,7 @@ export default function TasksPage() {
   const [currentCalendarMonth, setCurrentCalendarMonth] = useState(new Date());
   const [statusFilter, setStatusFilter] = useState('all');
   const [sortOrder, setSortOrder] = useState('default');
+  const [viewMode, setViewMode] = useState('list'); // 'list' | 'board'
   const calendarRef = useRef(null);
 
   useEffect(() => {
@@ -104,6 +106,27 @@ export default function TasksPage() {
             <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Tugas Saya</h1>
             <p className="text-slate-500 mt-1 capitalize">{format(currentDate, 'EEEE, d MMMM', { locale: idLocale })}</p>
           </div>
+          
+          <div className="flex items-center gap-3">
+            {/* View Mode Toggle */}
+            <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg border border-slate-200 dark:border-slate-700 shadow-inner">
+              <button
+                onClick={() => setViewMode('list')}
+                className={`p-1.5 rounded-md flex items-center justify-center transition-all ${viewMode === 'list' ? 'bg-white dark:bg-slate-900 shadow-sm text-primary' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                title="Tampilan Daftar"
+              >
+                <span className="material-symbols-outlined text-sm">view_list</span>
+              </button>
+              <button
+                onClick={() => setViewMode('board')}
+                className={`p-1.5 rounded-md flex items-center justify-center transition-all ${viewMode === 'board' ? 'bg-white dark:bg-slate-900 shadow-sm text-primary' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                title="Tampilan Papan Kanban"
+              >
+                <span className="material-symbols-outlined text-sm">view_kanban</span>
+              </button>
+            </div>
+
+            {/* Sort Dropdown */}
             <div className="relative group">
               <button className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors flex items-center gap-2 cursor-pointer shadow-sm">
                 <span className="material-symbols-outlined text-lg">sort</span> 
@@ -132,6 +155,7 @@ export default function TasksPage() {
                 </button>
               </div>
             </div>
+          </div>
         </div>
 
         {error && (
@@ -160,6 +184,10 @@ export default function TasksPage() {
               <span className="material-symbols-outlined text-sm">add</span>
               Mulai Kerjakan Sesuatu
             </button>
+          </div>
+        ) : viewMode === 'board' ? (
+          <div className="mt-4 h-[calc(100vh-200px)]">
+            <KanbanBoard tasks={filteredTasks} />
           </div>
         ) : (
           categories.map(category => {

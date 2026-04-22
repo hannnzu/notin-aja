@@ -30,7 +30,9 @@ export const useTaskStore = create((set, get) => ({
           isCompleted: t.is_completed,
           isArchived: t.is_archived,
           isOverdue: isTaskOverdue(t.due_date, t.is_completed),
-          dateCreatedAt: t.created_at
+          dateCreatedAt: t.created_at,
+          status: t.status || 'todo',
+          subtasks: t.subtasks || []
         });
 
         set((state) => {
@@ -95,7 +97,9 @@ export const useTaskStore = create((set, get) => ({
         isCompleted: t.is_completed,
         isArchived: t.is_archived,
         isOverdue: isTaskOverdue(t.due_date, t.is_completed),
-        dateCreatedAt: t.created_at
+        dateCreatedAt: t.created_at,
+        status: t.status || 'todo',
+        subtasks: t.subtasks || []
       }));
       set({ tasks: mappedTasks, isLoading: false });
 
@@ -116,6 +120,8 @@ export const useTaskStore = create((set, get) => ({
       category: newTask.category || newTask.project,
       priority: newTask.priority,
       due_date: newTask.dueDate,
+      status: newTask.status || 'todo',
+      subtasks: newTask.subtasks || []
     };
 
     const { data, error } = await supabase
@@ -136,7 +142,9 @@ export const useTaskStore = create((set, get) => ({
         isCompleted: data.is_completed,
         isArchived: data.is_archived,
         isOverdue: isTaskOverdue(data.due_date, data.is_completed),
-        dateCreatedAt: data.created_at
+        dateCreatedAt: data.created_at,
+        status: data.status || 'todo',
+        subtasks: data.subtasks || []
       };
       set((state) => ({
         tasks: [addedTask, ...state.tasks],
@@ -155,6 +163,8 @@ export const useTaskStore = create((set, get) => ({
     else if (updatedTask.project !== undefined) dbUpdate.category = updatedTask.project;
     if (updatedTask.priority !== undefined) dbUpdate.priority = updatedTask.priority;
     if (updatedTask.dueDate !== undefined) dbUpdate.due_date = updatedTask.dueDate;
+    if (updatedTask.status !== undefined) dbUpdate.status = updatedTask.status;
+    if (updatedTask.subtasks !== undefined) dbUpdate.subtasks = updatedTask.subtasks;
 
     const { error } = await supabase.from('tasks').update(dbUpdate).eq('id', id);
 
@@ -248,7 +258,9 @@ export const useTaskStore = create((set, get) => ({
         isCompleted: t.is_completed,
         isArchived: t.is_archived,
         isOverdue: isTaskOverdue(t.due_date, t.is_completed),
-        dateCreatedAt: t.created_at
+        dateCreatedAt: t.created_at,
+        status: t.status || 'todo',
+        subtasks: t.subtasks || []
       }));
 
       set(state => {

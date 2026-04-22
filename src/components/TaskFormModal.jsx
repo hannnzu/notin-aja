@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -6,6 +6,7 @@ import { useTaskStore } from '../store/useTaskStore';
 import { getTodayDateString } from '../utils/dateUtils';
 import { startOfMonth, endOfMonth, eachDayOfInterval, format, isToday, startOfWeek, endOfWeek, isSameMonth, addMonths, subMonths, isBefore, startOfDay } from 'date-fns';
 import idLocale from 'date-fns/locale/id';
+import { v4 as uuidv4 } from 'uuid';
 
 const taskSchema = z.object({
   title: z.string().min(1, 'Judul tugas tidak boleh kosong'),
@@ -20,11 +21,47 @@ export default function TaskFormModal() {
   const closeModal = useTaskStore(state => state.closeModal);
   const addTask = useTaskStore(state => state.addTask);
   const editTask = useTaskStore(state => state.editTask);
-  const isLoading = useTaskStore(state => state.isLoading); // Added isLoading
+  const isLoading = useTaskStore(state => state.isLoading);
+  const allTasks = useTaskStore(state => state.tasks);
 
   const [openDropdown, setOpenDropdown] = useState(null);
   const formRef = useRef(null);
   const [currentCalendarMonth, setCurrentCalendarMonth] = useState(new Date());
+
+  // Sub-tasks state
+  const [subtasks, setSubtasks] = useState([]);
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const subtaskInputRef = useRef(null);
+
+  // Kumpulkan semua judul sub-tugas unik dari seluruh tugas
+  const allSubtaskTitles = useMemo(() => {
+    const titles = new Set();
+    allTasks.forEach(task => {
+      (task.subtasks || []).forEach(st => {
+        if (st.title && st.title.trim()) titles.add(st.title.trim());
+      });
+    });
+    return [...titles].sort();
+  }, [allTasks]);
+
+  // Filter saran berdasarkan input saat ini
+  const subtaskSuggestions = useMemo(() => {
+    if (!newSubtaskTitle.trim()) return [];
+    const q = newSubtaskTitle.toLowerCase();
+    return allSubtaskTitles.filter(title =>
+      title.toLowerCase().includes(q) &&
+      !subtasks.some(s => s.title.toLowerCase() === title.toLowerCase())
+    ).slice(0, 6); // maks 6 saran
+  }, [newSubtaskTitle, allSubtaskTitles, subtasks]);
+
+  const addSubtask = (title) => {
+    if (!title.trim()) return;
+    setSubtasks(prev => [...prev, { id: uuidv4(), title: title.trim(), isCompleted: false }]);
+    setNewSubtaskTitle('');
+    setShowSuggestions(false);
+    subtaskInputRef.current?.focus();
+  };
 
   const monthStart = startOfMonth(currentCalendarMonth);
   const monthEnd = endOfMonth(monthStart);
@@ -101,6 +138,7 @@ export default function TaskFormModal() {
         category: normCategory(editingTask.category),
         dueDate: editingTask.dueDate || ''
       });
+      setSubtasks(editingTask.subtasks || []);
     } else {
       reset({
         title: '',
@@ -108,7 +146,9 @@ export default function TaskFormModal() {
         category: 'Pekerjaan',
         dueDate: ''
       });
+      setSubtasks([]);
     }
+    setNewSubtaskTitle('');
   }, [editingTask, isModalOpen, reset]);
 
   if (!isModalOpen) return null;
@@ -121,6 +161,8 @@ export default function TaskFormModal() {
       category: data.category,
       isCompleted: editingTask ? editingTask.isCompleted : false,
       isArchived: editingTask ? editingTask.isArchived : false,
+      subtasks: subtasks,
+      status: editingTask ? editingTask.status : 'todo'
     };
 
     if (editingTask) {
@@ -311,6 +353,93 @@ export default function TaskFormModal() {
               </div>
             </div>
             {errors.dueDate && <p className="text-red-500 text-xs mt-1">{errors.dueDate.message}</p>}
+          </div>
+
+          {/* Subtasks Section */}
+          <div className="pt-2">
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+              Sub-Tugas <span className="text-slate-400 font-normal text-xs ml-1">({subtasks.filter(s => s.isCompleted).length}/{subtasks.length})</span>
+            </label>
+            {subtasks.length > 0 && (
+              <div className="space-y-2 mb-3 max-h-[150px] overflow-y-auto pr-1 custom-scrollbar">
+                {subtasks.map(st => (
+                  <div key={st.id} className="flex items-center gap-2 group bg-slate-50 dark:bg-slate-800/50 p-2 rounded-lg border border-slate-100 dark:border-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => setSubtasks(subtasks.map(s => s.id === st.id ? { ...s, isCompleted: !s.isCompleted } : s))}
+                      className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 transition-colors shadow-sm ${st.isCompleted ? 'bg-primary border-primary text-white' : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900'}`}
+                    >
+                      {st.isCompleted && <span className="material-symbols-outlined text-[12px] font-bold">check</span>}
+                    </button>
+                    <span className={`text-sm flex-1 truncate transition-all ${st.isCompleted ? 'text-slate-400 line-through italic' : 'text-slate-700 dark:text-slate-200'}`}>
+                      {st.title}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setSubtasks(subtasks.filter(s => s.id !== st.id))}
+                      className="w-6 h-6 flex items-center justify-center text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md"
+                    >
+                      <span className="material-symbols-outlined text-[16px]">close</span>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Input + Autocomplete */}
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-[16px] text-slate-400 pointer-events-none">add_task</span>
+                <input
+                  ref={subtaskInputRef}
+                  type="text"
+                  value={newSubtaskTitle}
+                  onChange={(e) => {
+                    setNewSubtaskTitle(e.target.value);
+                    setShowSuggestions(true);
+                  }}
+                  onFocus={() => setShowSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      addSubtask(newSubtaskTitle);
+                    } else if (e.key === 'Escape') {
+                      setShowSuggestions(false);
+                    }
+                  }}
+                  placeholder="Ketik sub-tugas dan tekan Enter..."
+                  className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm placeholder:text-slate-400"
+                />
+
+                {/* Dropdown Saran */}
+                {showSuggestions && subtaskSuggestions.length > 0 && (
+                  <div className="absolute z-50 left-0 right-0 mt-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 pt-2 pb-1">Pernah dipakai</p>
+                    {subtaskSuggestions.map((suggestion, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onMouseDown={(e) => e.preventDefault()} // cegah blur sebelum click
+                        onClick={() => addSubtask(suggestion)}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-primary/5 hover:text-primary transition-colors flex items-center gap-2 text-slate-700 dark:text-slate-200"
+                      >
+                        <span className="material-symbols-outlined text-[14px] text-slate-400">history</span>
+                        {suggestion}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => addSubtask(newSubtaskTitle)}
+                disabled={!newSubtaskTitle.trim()}
+                className="px-3 py-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <span className="material-symbols-outlined text-[18px] leading-none">add</span>
+              </button>
+            </div>
           </div>
 
           <div className="flex items-center justify-end gap-3 pt-6 border-t border-slate-100 dark:border-slate-800 mt-6">

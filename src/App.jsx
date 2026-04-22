@@ -7,6 +7,7 @@ import { useAuthStore } from './store/useAuthStore';
 // Pages to be implemented
 import Dashboard from './pages/Dashboard';
 import TasksPage from './pages/TasksPage';
+import KanbanPage from './pages/KanbanPage';
 import ArchivePage from './pages/ArchivePage';
 import SettingsPage from './pages/SettingsPage';
 import LoginPage from './pages/LoginPage';
@@ -44,6 +45,7 @@ function App() {
           <Route element={<MainLayout />}>
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="tasks" element={<TasksPage />} />
+            <Route path="kanban" element={<KanbanPage />} />
             <Route path="archive" element={<ArchivePage />} />
             <Route path="settings" element={<SettingsPage />} />
           </Route>
