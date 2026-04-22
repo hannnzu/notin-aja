@@ -36,7 +36,7 @@ export default function TaskItem({
   const formattedDate = formatTaskDateDisplay(dueDate);
 
   return (
-    <div className="task-row group bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center gap-4 transition-all hover:shadow-md hover:border-primary/30">
+    <div className="task-row group bg-white dark:bg-slate-900 p-3 md:p-4 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center gap-3 md:gap-4 transition-all hover:shadow-md hover:border-primary/30">
       <div className="flex items-center justify-center shrink-0">
         <input
           checked={isCompleted}
@@ -46,7 +46,7 @@ export default function TaskItem({
         />
       </div>
       <div className={`flex-1 min-w-0 ${isCompleted ? 'opacity-60' : ''}`}>
-        <div className="flex items-center gap-3 mb-1">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3 mb-1.5">
           <h4
             className={`text-sm font-semibold text-slate-900 dark:text-white truncate ${isCompleted ? 'line-through' : ''
               }`}
@@ -55,7 +55,7 @@ export default function TaskItem({
           </h4>
           {priority && (
             <span
-              className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${getPriorityStyle(
+              className={`w-fit px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${getPriorityStyle(
                 priority
               )}`}
             >
@@ -63,7 +63,7 @@ export default function TaskItem({
             </span>
           )}
         </div>
-        <div className="flex items-center gap-4 text-xs text-slate-500">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-[11px] sm:text-xs text-slate-500">
           <span
             className={`flex items-center gap-1 ${isOverdue ? 'text-red-500 font-medium' : ''
               }`}
@@ -83,7 +83,7 @@ export default function TaskItem({
           )}
         </div>
       </div>
-      <div className="task-actions opacity-0 transition-opacity flex items-center gap-1">
+      <div className="task-actions md:opacity-0 transition-opacity flex items-center gap-1 shrink-0">
         {!isArchived && (
           <button
             onClick={() => openModal({ id, title, priority, dueDate, category, isCompleted, isArchived })}

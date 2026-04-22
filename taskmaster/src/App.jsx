@@ -13,18 +13,27 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
+import LandingPage from './pages/LandingPage';
 
 function App() {
   const initializeAuth = useAuthStore(state => state.initializeAuth);
 
   useEffect(() => {
     initializeAuth();
+    // Restore or enforce theme globally
+    const isDark = localStorage.getItem('theme') === 'dark';
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
   }, [initializeAuth]);
 
   return (
     <BrowserRouter>
       <Routes>
         {/* Public Routes */}
+        <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
@@ -33,7 +42,7 @@ function App() {
         {/* Protected Routes */}
         <Route element={<ProtectedRoute />}>
           <Route element={<MainLayout />}>
-            <Route path="/" element={<Dashboard />} />
+            <Route path="dashboard" element={<Dashboard />} />
             <Route path="tasks" element={<TasksPage />} />
             <Route path="archive" element={<ArchivePage />} />
             <Route path="settings" element={<SettingsPage />} />

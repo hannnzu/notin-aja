@@ -59,8 +59,8 @@ export default function LoginPage() {
                 <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center -rotate-6 overflow-hidden shadow-sm">
                     <img src="/notin.png" alt="Logo" className="w-full h-full object-cover" />
                 </div>
-                <span className="font-display font-black text-xl tracking-tight text-slate-800 dark:text-white">
-                    Notin, Aja!
+                <span className="font-serif font-bold text-2xl tracking-tight text-slate-800 dark:text-slate-50">
+                    Notin, <span className="text-primary italic">Aja!</span>
                 </span>
             </div>
 

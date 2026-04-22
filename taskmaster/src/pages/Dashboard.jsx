@@ -1,10 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useTaskStore } from '../store/useTaskStore';
-import { isTaskToday, subDays } from '../utils/dateUtils';
+import { isTaskToday } from '../utils/dateUtils';
 
 export default function Dashboard() {
   const { tasks, fetchTasks, isLoading, error, openModal } = useTaskStore();
-  const [chartRange, setChartRange] = useState(7);
 
   useEffect(() => {
     fetchTasks();
@@ -28,40 +27,35 @@ export default function Dashboard() {
     .filter(t => !t.isCompleted && t.priority === 'Prioritas Tinggi')
     .slice(0, 3);
 
-  // Generate Productivity Graph Logic
-  const getLastDaysArray = (daysCount) => {
-    const days = [];
-    const today = new Date();
-    for (let i = daysCount - 1; i >= 0; i--) {
-      days.push(subDays(today, i));
-    }
-    return days;
+  // Category Distribution Logic
+  const getCategoryColor = (categoryName) => {
+    const l = categoryName?.toLowerCase() || '';
+    if (l === 'pekerjaan') return { bg: 'bg-blue-50', fill: 'bg-blue-500', text: 'text-blue-600', border: 'border-blue-100' };
+    if (l === 'pribadi') return { bg: 'bg-purple-50', fill: 'bg-purple-500', text: 'text-purple-600', border: 'border-purple-100' };
+    if (l === 'belanja') return { bg: 'bg-emerald-50', fill: 'bg-emerald-500', text: 'text-emerald-600', border: 'border-emerald-100' };
+    return { bg: 'bg-amber-50', fill: 'bg-amber-500', text: 'text-amber-600', border: 'border-amber-100' }; // Lainnya
   };
 
-  const chartDays = getLastDaysArray(chartRange);
+  const categoryStats = useMemo(() => {
+    const uniqueCategories = [...new Set(tasks.map(t => t.category))].filter(Boolean);
 
-  // Calculate max tasks completed in any of the mapped days to set graph scale
-  const completedByDay = chartDays.map(date => {
-    return activeTasks.filter(t => {
-      if (!t.isCompleted) return false;
+    const stats = uniqueCategories.map(cat => {
+      const catTasks = tasks.filter(t => t.category === cat);
+      const total = catTasks.length;
+      const completed = catTasks.filter(t => t.isCompleted).length;
+      const percentage = total === 0 ? 0 : Math.round((completed / total) * 100);
 
-      const targetDateStr = t.dueDate && t.dueDate !== 'Selesai'
-        ? t.dueDate
-        : t.dateCreatedAt;
+      return {
+        name: cat,
+        total,
+        completed,
+        percentage,
+        colors: getCategoryColor(cat)
+      };
+    });
 
-      if (!targetDateStr) return false;
-
-      // Parse safely avoiding timezone jumps by just extracting YYYY-MM-DD
-      const dateStr = date.getFullYear() + '-' +
-        String(date.getMonth() + 1).padStart(2, '0') + '-' +
-        String(date.getDate()).padStart(2, '0');
-
-      return targetDateStr.startsWith(dateStr);
-    }).length;
-  });
-  const maxCompleted = Math.max(...completedByDay, 1); // Avoid division by zero
-
-  const dayNames = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+    return stats.sort((a, b) => b.total - a.total);
+  }, [tasks]);
 
   return (
     <div className="p-8 max-w-7xl mx-auto w-full">
@@ -132,9 +126,9 @@ export default function Dashboard() {
               <div className="w-24 h-24 bg-primary/10 dark:bg-primary/20 text-primary rounded-full flex items-center justify-center mx-auto mb-6">
                 <span className="material-symbols-outlined text-[48px]">award_star</span>
               </div>
-              <h3 className="text-2xl font-extrabold tracking-tight mb-3">Tidak Ada Agenda Tersembunyi!</h3>
+              <h3 className="text-2xl font-extrabold tracking-tight mb-3">Tidak Ada Agenda Selama Ini!</h3>
               <p className="text-slate-500 dark:text-slate-400 max-w-md mx-auto mb-8">
-                Wah, Anda hebat! Semua tugas telah diselesaikan atau Anda belum memulai satupun proyek baru. Mari kita ciptakan hari yang produktif.
+                Anda belum memulai satupun proyek baru. Mari kita ciptakan hari yang produktif.
               </p>
               <button
                 onClick={() => openModal()}
@@ -146,52 +140,47 @@ export default function Dashboard() {
             </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {/* Productivity Chart */}
-              <div className="lg:col-span-2 bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+              {/* Category Distribution */}
+              <div className="lg:col-span-2 bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col">
                 <div className="flex items-center justify-between mb-8">
                   <div>
-                    <h3 className="text-lg font-bold">Produktivitas Mingguan</h3>
+                    <h3 className="text-lg font-bold">Distribusi Kategori</h3>
                     <p className="text-sm text-slate-500 dark:text-slate-400">
-                      Aktivitas berdasarkan tugas yang selesai
+                      Rasio penyelesaian tugas berdasarkan grup
                     </p>
                   </div>
-                  <select
-                    value={chartRange}
-                    onChange={(e) => setChartRange(Number(e.target.value))}
-                    className="bg-slate-100 dark:bg-slate-800 border-none text-xs font-bold rounded-lg focus:ring-0 cursor-pointer"
-                  >
-                    <option value={7}>7 Hari Terakhir</option>
-                    <option value={30}>30 Hari Terakhir</option>
-                  </select>
+                  <div className="p-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl text-slate-400 border border-slate-100 dark:border-slate-700 flex items-center justify-center shadow-sm">
+                    <span className="material-symbols-outlined">bar_chart</span>
+                  </div>
                 </div>
-                <div className="flex items-end justify-between h-48 gap-1 md:gap-2 pt-4">
-                  {chartDays.map((date, index) => {
-                    const completedCount = completedByDay[index];
-                    const heightPercentage = Math.round((completedCount / maxCompleted) * 100);
-                    const isToday = index === chartDays.length - 1; // Last item is always today
 
-                    // Conditionally render labels to prevent overlap on 30 day view
-                    const showLabel = chartRange === 7 ? true : (index % 5 === 0 || isToday);
-
-                    return (
-                      <div key={index} className="flex-1 flex flex-col items-center gap-2 group relative">
-                        {/* Tooltip */}
-                        <div className="absolute -top-8 bg-slate-800 text-white text-[10px] py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
-                          {completedCount} tugas pada {date.getDate()}/{date.getMonth() + 1}
+                <div className="flex-1 flex flex-col justify-center space-y-6 pt-2 pb-4">
+                  {categoryStats.length === 0 ? (
+                    <p className="text-sm text-slate-500 text-center py-8">Belum ada kategori aktif yang dapat dianalisis.</p>
+                  ) : (
+                    categoryStats.map((stat, idx) => (
+                      <div key={idx} className="relative group">
+                        <div className="flex justify-between items-end mb-2.5">
+                          <div className="flex items-center gap-3">
+                            <span className={`w-3.5 h-3.5 rounded-full ${stat.colors.fill} shadow-sm`}></span>
+                            <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{stat.name}</span>
+                          </div>
+                          <div className="flex flex-col items-end">
+                            <span className="text-sm font-extrabold text-slate-900 dark:text-white mb-0.5">{stat.percentage}%</span>
+                            <span className="text-[10px] text-slate-500 font-medium tracking-wide uppercase">{stat.completed} dari {stat.total} Selesai</span>
+                          </div>
                         </div>
-
-                        <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-t-sm md:rounded-t-lg relative flex-1">
+                        <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-3 overflow-hidden shadow-inner">
                           <div
-                            className={`absolute inset-x-0 bottom-0 rounded-t-sm md:rounded-t-lg transition-all duration-500 ${isToday ? 'bg-primary' : 'bg-primary/50'}`}
-                            style={{ height: `${heightPercentage}%`, minHeight: completedCount > 0 ? '10%' : '0%' }}
-                          ></div>
+                            className={`${stat.colors.fill} h-3 rounded-full transition-all duration-1000 ease-out relative overflow-hidden group-hover:brightness-110`}
+                            style={{ width: `${stat.percentage}%` }}
+                          >
+                            <div className="absolute top-0 left-0 bottom-0 right-0 bg-white/20 transform -skew-x-12 -translate-x-full group-hover:translate-x-[200%] transition-transform duration-1000"></div>
+                          </div>
                         </div>
-                        <span className={`text-[9px] md:text-[10px] font-bold uppercase h-3 md:h-4 ${isToday ? 'text-primary' : 'text-slate-400'}`}>
-                          {showLabel ? (chartRange === 7 ? dayNames[date.getDay()] : date.getDate()) : ''}
-                        </span>
                       </div>
-                    );
-                  })}
+                    ))
+                  )}
                 </div>
               </div>
               {/* Upcoming Tasks Quick View */}

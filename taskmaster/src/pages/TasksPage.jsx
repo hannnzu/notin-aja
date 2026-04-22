@@ -9,6 +9,8 @@ export default function TasksPage() {
   const { tasks, fetchTasks, isLoading, error, currentFilter, currentCategory, searchQuery, openModal } = useTaskStore();
   const [showCalendar, setShowCalendar] = useState(false);
   const [currentCalendarMonth, setCurrentCalendarMonth] = useState(new Date());
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [sortOrder, setSortOrder] = useState('default');
   const calendarRef = useRef(null);
 
   useEffect(() => {
@@ -44,6 +46,23 @@ export default function TasksPage() {
     if (searchQuery.trim() !== '') {
       const q = searchQuery.toLowerCase();
       filtered = filtered.filter(t => t.title.toLowerCase().includes(q) || t.category?.toLowerCase().includes(q));
+    }
+
+    // Apply local Status Filter
+    if (statusFilter === 'active') {
+      filtered = filtered.filter(t => !t.isCompleted);
+    } else if (statusFilter === 'completed') {
+      filtered = filtered.filter(t => t.isCompleted);
+    }
+
+    // Apply Sorting
+    if (sortOrder === 'dueDateAsc') {
+      filtered = filtered.sort((a, b) => {
+        if (!a.dueDate && !b.dueDate) return 0;
+        if (!a.dueDate || a.dueDate === 'Selesai') return 1;
+        if (!b.dueDate || b.dueDate === 'Selesai') return -1;
+        return new Date(a.dueDate) - new Date(b.dueDate);
+      });
     }
 
     return filtered;
@@ -85,14 +104,34 @@ export default function TasksPage() {
             <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Tugas Saya</h1>
             <p className="text-slate-500 mt-1 capitalize">{format(currentDate, 'EEEE, d MMMM', { locale: idLocale })}</p>
           </div>
-          <div className="flex gap-2">
-            <button className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors flex items-center gap-2">
-              <span className="material-symbols-outlined text-lg">sort</span> Urutkan
-            </button>
-            <button className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors flex items-center gap-2">
-              <span className="material-symbols-outlined text-lg">filter_list</span> Saring
-            </button>
-          </div>
+            <div className="relative group">
+              <button className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors flex items-center gap-2 cursor-pointer shadow-sm">
+                <span className="material-symbols-outlined text-lg">sort</span> 
+                {sortOrder === 'default' ? 'Urutkan' : 'Tenggat Terdekat'}
+              </button>
+              <div className="absolute right-0 mt-2 w-52 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20 py-1 overflow-hidden">
+                <button onClick={() => setSortOrder('default')} className={`w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors ${sortOrder === 'default' ? 'font-bold text-primary bg-primary/5' : 'text-slate-600 dark:text-slate-300'}`}>Tatanan Logis</button>
+                <button onClick={() => setSortOrder('dueDateAsc')} className={`w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors ${sortOrder === 'dueDateAsc' ? 'font-bold text-primary bg-primary/5' : 'text-slate-600 dark:text-slate-300'}`}>Tenggat Terdekat</button>
+              </div>
+            </div>
+            
+            <div className="relative group">
+              <button className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors flex items-center gap-2 cursor-pointer shadow-sm">
+                <span className="material-symbols-outlined text-lg">filter_list</span> 
+                {statusFilter === 'all' ? 'Saring' : statusFilter === 'active' ? 'Belum Selesai' : 'Sudah Selesai'}
+              </button>
+              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20 py-1 overflow-hidden">
+                <button onClick={() => setStatusFilter('all')} className={`w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors ${statusFilter === 'all' ? 'font-bold text-primary bg-primary/5' : 'text-slate-600 dark:text-slate-300'}`}>Semua Status</button>
+                <button onClick={() => setStatusFilter('active')} className={`w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center justify-between ${statusFilter === 'active' ? 'font-bold text-primary bg-primary/5' : 'text-slate-600 dark:text-slate-300'}`}>
+                  Belum Selesai
+                  {statusFilter === 'active' && <span className="w-2 h-2 rounded-full bg-primary"></span>}
+                </button>
+                <button onClick={() => setStatusFilter('completed')} className={`w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center justify-between ${statusFilter === 'completed' ? 'font-bold text-primary bg-primary/5' : 'text-slate-600 dark:text-slate-300'}`}>
+                  Sudah Selesai
+                  {statusFilter === 'completed' && <span className="w-2 h-2 rounded-full bg-primary"></span>}
+                </button>
+              </div>
+            </div>
         </div>
 
         {error && (

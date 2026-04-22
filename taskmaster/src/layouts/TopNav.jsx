@@ -10,6 +10,9 @@ export default function TopNav() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
 
+  const isMobileMenuOpen = useTaskStore(state => state.isMobileMenuOpen);
+  const setMobileMenuOpen = useTaskStore(state => state.setMobileMenuOpen);
+
   // Aggregate notifications
   const urgentTasks = tasks.filter(t => !t.isArchived && !t.isCompleted && t.priority === 'Prioritas Tinggi');
   const todayTasks = tasks.filter(t => !t.isArchived && !t.isCompleted && isTaskToday(t.dueDate));
@@ -28,6 +31,10 @@ export default function TopNav() {
   const location = useLocation();
 
   const handleLogout = async () => {
+    // Prevent theme bleeding to next user session
+    document.documentElement.classList.remove('dark');
+    localStorage.removeItem('theme');
+
     await signOut();
     navigate('/login');
   };
@@ -62,22 +69,28 @@ export default function TopNav() {
   }, []);
 
   return (
-    <header ref={navRef} className="h-16 border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md flex flex-none items-center justify-between px-8 sticky top-0 z-10 w-full">
-      <div className="flex items-center gap-4 flex-1">
+    <header ref={navRef} className="h-16 border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md flex flex-none items-center justify-between px-4 md:px-8 sticky top-0 z-10 w-full gap-2">
+      <div className="flex items-center gap-2 md:gap-4 flex-1">
+        <button 
+          onClick={() => setMobileMenuOpen(!isMobileMenuOpen)}
+          className="p-1.5 -ml-1 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg md:hidden"
+        >
+          <span className="material-symbols-outlined text-[24px]">menu</span>
+        </button>
         <div className="relative w-full max-w-md">
-          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[20px]">
+          <span className="material-symbols-outlined absolute left-2 md:left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px] md:text-[20px]">
             search
           </span>
           <input
             value={searchQuery}
             onChange={handleSearchChange}
-            className="w-full pl-10 pr-4 py-2 bg-slate-100 dark:bg-slate-800 border-none rounded-lg text-sm focus:ring-2 focus:ring-primary/20 placeholder:text-slate-500 transition-all focus:bg-white dark:focus:bg-slate-900"
-            placeholder="Cari tugas, proyek..."
+            className="w-full pl-8 md:pl-10 pr-3 md:pr-4 py-1.5 md:py-2 bg-slate-100 dark:bg-slate-800 border-none rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-primary/20 placeholder:text-slate-500 transition-all focus:bg-white dark:focus:bg-slate-900"
+            placeholder="Cari tugas..."
             type="text"
           />
         </div>
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-1 md:gap-3 shrink-0">
         <div className="relative">
           <button
             onClick={() => {
@@ -138,18 +151,18 @@ export default function TopNav() {
           )}
         </div>
 
-        <div className="h-8 w-[1px] bg-slate-200 dark:bg-slate-800 mx-2"></div>
+        <div className="h-6 md:h-8 w-[1px] bg-slate-200 dark:bg-slate-800 mx-1 md:mx-2"></div>
 
         <div className="relative">
           <button
             onClick={() => { setShowProfile(!showProfile); setShowNotifications(false); }}
-            className="flex items-center gap-3 pl-2 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 p-1 pr-3 rounded-xl transition-colors"
+            className="flex items-center gap-2 md:gap-3 pl-1 md:pl-2 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 p-1 md:pr-3 rounded-xl transition-colors"
           >
-            <div className="text-right hidden sm:block">
+            <div className="text-right hidden md:block">
               <p className="text-sm font-bold leading-none">{user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Member'}</p>
               <p className="text-[10px] text-slate-500 uppercase tracking-wider mt-1">{user?.user_metadata?.role || 'Pengguna'}</p>
             </div>
-            <div className="w-10 h-10 rounded-full bg-slate-200 bg-cover bg-center border-2 border-white dark:border-slate-800 overflow-hidden shrink-0 shadow-sm">
+            <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-slate-200 bg-cover bg-center border-2 border-white dark:border-slate-800 overflow-hidden shrink-0 shadow-sm">
               {user?.user_metadata?.avatar_url ? (
                 <img
                   src={user.user_metadata.avatar_url}
@@ -157,7 +170,7 @@ export default function TopNav() {
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <div className="w-full h-full bg-primary flex items-center justify-center text-white font-bold text-lg">
+                <div className="w-full h-full bg-primary flex items-center justify-center text-white font-bold text-sm md:text-lg">
                   {(user?.email || 'U')[0].toUpperCase()}
                 </div>
               )}

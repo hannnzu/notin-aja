@@ -268,5 +268,9 @@ export const useTaskStore = create((set, get) => ({
   editingTask: null, // null means "Create Mode", otherwise contains task object
 
   openModal: (task = null) => set({ isModalOpen: true, editingTask: task }),
-  closeModal: () => set({ isModalOpen: false, editingTask: null })
+  closeModal: () => set({ isModalOpen: false, editingTask: null }),
+
+  // Mobile Navigation State
+  isMobileMenuOpen: false,
+  setMobileMenuOpen: (isOpen) => set({ isMobileMenuOpen: isOpen })
 }));

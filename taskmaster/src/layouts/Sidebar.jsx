@@ -13,33 +13,48 @@ export default function Sidebar() {
   const todayCount = tasks.filter(t => !t.isArchived && (t.dueDate === 'Hari Ini' || t.isOverdue)).length;
   const openModal = useTaskStore(state => state.openModal);
 
+  const isMobileMenuOpen = useTaskStore(state => state.isMobileMenuOpen);
+  const setMobileMenuOpen = useTaskStore(state => state.setMobileMenuOpen);
+
   const location = useLocation();
   const isTasksPage = location.pathname === '/tasks';
 
   const handleFilterClick = (filter) => {
     setFilter(filter);
+    setMobileMenuOpen(false);
     navigate('/tasks');
   };
 
   const handleCategoryClick = (category) => {
     setCategory(category);
+    setMobileMenuOpen(false);
     navigate('/tasks');
   };
 
   return (
-    <aside className="w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col shrink-0">
+    <>
+      {/* Mobile Backdrop */}
+      {isMobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-40 md:hidden"
+          onClick={() => setMobileMenuOpen(false)}
+        ></div>
+      )}
+
+      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col shrink-0 transform transition-transform duration-300 md:relative md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'}`}>
       <div className="p-6 flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-white overflow-hidden shrink-0 shadow-sm">
           <img src="/notin.png" alt="Notin, Aja! Logo" className="w-full h-full object-cover" />
         </div>
         <div>
-          <h1 className="text-lg font-bold leading-none">Notin, Aja!</h1>
+          <h1 className="text-2xl font-bold leading-none font-serif text-slate-800 dark:text-slate-50">Notin, <span className="text-primary italic">Aja!</span></h1>
           <p className="text-xs text-slate-500 dark:text-slate-400">Sistem Manajemen Tugas</p>
         </div>
       </div>
       <nav className="flex-1 px-4 space-y-2 mt-4">
         <NavLink
-          to="/"
+          to="/dashboard"
+          onClick={() => setMobileMenuOpen(false)}
           className={({ isActive }) =>
             `flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${isActive
               ? 'bg-primary/10 text-primary group font-semibold'
@@ -52,6 +67,7 @@ export default function Sidebar() {
         </NavLink>
         <NavLink
           to="/tasks"
+          onClick={() => setMobileMenuOpen(false)}
           className={({ isActive }) =>
             `flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${isActive
               ? 'bg-primary/10 text-primary group font-semibold'
@@ -64,6 +80,7 @@ export default function Sidebar() {
         </NavLink>
         <NavLink
           to="/archive"
+          onClick={() => setMobileMenuOpen(false)}
           className={({ isActive }) =>
             `flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${isActive
               ? 'bg-primary/10 text-primary group font-semibold'
@@ -76,6 +93,7 @@ export default function Sidebar() {
         </NavLink>
         <NavLink
           to="/settings"
+          onClick={() => setMobileMenuOpen(false)}
           className={({ isActive }) =>
             `flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${isActive
               ? 'bg-primary/10 text-primary group font-semibold'
@@ -149,7 +167,7 @@ export default function Sidebar() {
       </nav>
       <div className="p-4 mt-auto">
         <button
-          onClick={() => openModal()}
+          onClick={() => { openModal(); setMobileMenuOpen(false); }}
           className="w-full bg-primary hover:bg-primary/90 text-white rounded-xl py-3 px-4 flex items-center justify-center gap-2 font-semibold shadow-lg shadow-primary/20 transition-all"
         >
           <span className="material-symbols-outlined">add</span>
@@ -157,5 +175,6 @@ export default function Sidebar() {
         </button>
       </div>
     </aside>
+    </>
   );
 }
