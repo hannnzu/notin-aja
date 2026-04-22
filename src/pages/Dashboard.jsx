@@ -1,9 +1,13 @@
 import { useEffect, useMemo } from 'react';
 import { useTaskStore } from '../store/useTaskStore';
+import { useAuthStore } from '../store/useAuthStore';
 import { isTaskToday } from '../utils/dateUtils';
 
 export default function Dashboard() {
   const { tasks, fetchTasks, isLoading, error, openModal } = useTaskStore();
+  const { user } = useAuthStore();
+
+  const userName = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split('@')[0] || '';
 
   useEffect(() => {
     fetchTasks();
@@ -61,7 +65,7 @@ export default function Dashboard() {
     <div className="p-8 max-w-7xl mx-auto w-full">
       {/* Greeting */}
       <div className="mb-8">
-        <h2 className="text-3xl font-extrabold tracking-tight">Selamat Pagi!</h2>
+        <h2 className="text-3xl font-extrabold tracking-tight">Halo, {userName}!</h2>
         <p className="text-slate-500 dark:text-slate-400 mt-1">
           {activeTasks.length === 0
             ? "Semua bersih! Tidak ada kegiatan yang menumpuk hari ini."
