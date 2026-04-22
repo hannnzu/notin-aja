@@ -62,7 +62,7 @@ export default function Dashboard() {
   }, [tasks]);
 
   return (
-    <div className="p-5 sm:p-6 md:p-8 pb-24 sm:pb-24 md:pb-8 max-w-7xl mx-auto w-full min-h-full">
+    <div className="p-5 sm:p-6 md:p-8 pb-16 sm:pb-20 md:pb-8 max-w-7xl mx-auto w-full">
       {/* Greeting */}
       <div className="mb-8">
         <h2 className="text-3xl font-extrabold tracking-tight">Halo, {userName}!</h2>
@@ -126,12 +126,12 @@ export default function Dashboard() {
           </div>
 
           {activeTasks.length === 0 ? (
-            <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 sm:p-12 text-center border border-slate-200 dark:border-slate-800 shadow-sm col-span-1 lg:col-span-3">
-              <div className="w-20 h-20 sm:w-24 sm:h-24 bg-primary/10 dark:bg-primary/20 text-primary rounded-full flex items-center justify-center mx-auto mb-6">
-                <span className="material-symbols-outlined text-[40px] sm:text-[48px]">award_star</span>
+            <div className="bg-white dark:bg-slate-900 rounded-3xl p-12 text-center border border-slate-200 dark:border-slate-800 shadow-sm col-span-1 lg:col-span-3">
+              <div className="w-24 h-24 bg-primary/10 dark:bg-primary/20 text-primary rounded-full flex items-center justify-center mx-auto mb-6">
+                <span className="material-symbols-outlined text-[48px]">award_star</span>
               </div>
-              <h3 className="text-xl sm:text-2xl font-extrabold tracking-tight mb-3">Tidak Ada Agenda Selama Ini!</h3>
-              <p className="text-sm sm:text-base text-slate-500 dark:text-slate-400 max-w-md mx-auto mb-8">
+              <h3 className="text-2xl font-extrabold tracking-tight mb-3">Tidak Ada Agenda Selama Ini!</h3>
+              <p className="text-slate-500 dark:text-slate-400 max-w-md mx-auto mb-8">
                 Anda belum memulai satupun proyek baru. Mari kita ciptakan hari yang produktif.
               </p>
               <button

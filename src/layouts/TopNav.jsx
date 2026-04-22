@@ -107,7 +107,7 @@ export default function TopNav() {
           </button>
 
           {showNotifications && (
-            <div className="absolute right-0 mt-2 w-[calc(100vw-2rem)] sm:w-80 bg-white dark:bg-slate-900 rounded-xl shadow-lg border border-slate-200 dark:border-slate-800 py-2 z-50">
+            <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-slate-900 rounded-xl shadow-lg border border-slate-200 dark:border-slate-800 py-2 z-50">
               <div className="px-4 py-2 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
                 <h3 className="font-bold text-sm">Notifikasi</h3>
                 <span className="text-xs bg-primary/10 text-primary font-bold px-2 py-0.5 rounded-full">{notificationsCount} Baru</span>
