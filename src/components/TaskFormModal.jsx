@@ -34,6 +34,19 @@ export default function TaskFormModal() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const subtaskInputRef = useRef(null);
 
+  // Parent task state
+  const [selectedParentId, setSelectedParentId] = useState(null);
+
+  // Eligible parent tasks: non-archived root tasks, exclude self
+  const eligibleParents = useMemo(() =>
+    allTasks.filter(t =>
+      !t.isArchived &&
+      !t.parentId &&
+      t.id !== editingTask?.id
+    ),
+    [allTasks, editingTask]
+  );
+
   // Kumpulkan semua judul sub-tugas unik dari seluruh tugas
   const allSubtaskTitles = useMemo(() => {
     const titles = new Set();
@@ -139,6 +152,7 @@ export default function TaskFormModal() {
         dueDate: editingTask.dueDate || ''
       });
       setSubtasks(editingTask.subtasks || []);
+      setSelectedParentId(editingTask.parentId || null);
     } else {
       reset({
         title: '',
@@ -147,6 +161,7 @@ export default function TaskFormModal() {
         dueDate: ''
       });
       setSubtasks([]);
+      setSelectedParentId(null);
     }
     setNewSubtaskTitle('');
   }, [editingTask, isModalOpen, reset]);
@@ -162,7 +177,8 @@ export default function TaskFormModal() {
       isCompleted: editingTask ? editingTask.isCompleted : false,
       isArchived: editingTask ? editingTask.isArchived : false,
       subtasks: subtasks,
-      status: editingTask ? editingTask.status : 'todo'
+      status: editingTask ? editingTask.status : 'todo',
+      parentId: selectedParentId
     };
 
     if (editingTask) {
@@ -208,6 +224,7 @@ export default function TaskFormModal() {
             <input type="hidden" {...register('category')} />
             <input type="hidden" {...register('priority')} />
             
+            {/* Kategori */}
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                 Kategori
@@ -243,6 +260,8 @@ export default function TaskFormModal() {
               </div>
               {errors.category && <p className="text-red-500 text-xs mt-1">{errors.category.message}</p>}
             </div>
+
+            {/* Prioritas */}
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                 Prioritas
@@ -279,6 +298,70 @@ export default function TaskFormModal() {
                 )}
               </div>
               {errors.priority && <p className="text-red-500 text-xs mt-1">{errors.priority.message}</p>}
+            </div>
+          </div>
+
+          {/* Bagian dari Tugas (Parent Selector) */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+              Bagian dari Tugas
+              <span className="text-slate-400 font-normal text-xs ml-1">(Opsional)</span>
+            </label>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setOpenDropdown(openDropdown === 'parent' ? null : 'parent')}
+                className={`w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border ${openDropdown === 'parent' ? 'border-primary shadow-sm shadow-primary/20' : 'border-slate-200 dark:border-slate-700'} rounded-lg focus:outline-none text-sm cursor-pointer flex justify-between items-center text-left transition-all`}
+              >
+                <span className="flex items-center gap-2 truncate">
+                  {selectedParentId
+                    ? (
+                      <>
+                        <span className="material-symbols-outlined text-[14px] text-primary">account_tree</span>
+                        <span className="text-slate-800 dark:text-slate-200 font-medium truncate">
+                          {eligibleParents.find(t => t.id === selectedParentId)?.title || 'Tugas tidak ditemukan'}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-slate-400">Tidak ada (Tugas Mandiri)</span>
+                    )
+                  }
+                </span>
+                <span className={`material-symbols-outlined text-slate-400 text-lg transition-transform shrink-0 ${openDropdown === 'parent' ? 'rotate-180' : ''}`}>expand_more</span>
+              </button>
+
+              {openDropdown === 'parent' && (
+                <div className="absolute z-50 w-full mt-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl overflow-hidden py-1 animate-in fade-in zoom-in-95 duration-100 max-h-48 overflow-y-auto">
+                  <button
+                    type="button"
+                    onClick={() => { setSelectedParentId(null); setOpenDropdown(null); }}
+                    className={`w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center justify-between ${!selectedParentId ? 'font-bold text-primary bg-primary/5' : 'text-slate-500'}`}
+                  >
+                    <span className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-[14px]">remove_circle_outline</span>
+                      Tidak ada (Tugas Mandiri)
+                    </span>
+                    {!selectedParentId && <span className="material-symbols-outlined text-[16px]">check</span>}
+                  </button>
+                  {eligibleParents.length === 0 && (
+                    <p className="text-xs text-slate-400 text-center py-3">Belum ada tugas utama tersedia.</p>
+                  )}
+                  {eligibleParents.map(t => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => { setSelectedParentId(t.id); setOpenDropdown(null); }}
+                      className={`w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center justify-between ${selectedParentId === t.id ? 'font-bold text-primary bg-primary/5' : 'text-slate-700 dark:text-slate-200'}`}
+                    >
+                      <span className="flex items-center gap-2 truncate">
+                        <span className="material-symbols-outlined text-[14px] text-slate-400">task_alt</span>
+                        <span className="truncate">{t.title}</span>
+                      </span>
+                      {selectedParentId === t.id && <span className="material-symbols-outlined text-[16px]">check</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 

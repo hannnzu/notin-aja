@@ -1,6 +1,6 @@
 import TaskItem from './TaskItem';
 
-export default function TaskList({ title, icon, iconColor, count, tasks }) {
+export default function TaskList({ title, icon, iconColor, count, tasks, childrenMap = {} }) {
   return (
     <section className="mb-10">
       <div className="flex items-center gap-2 mb-4">
@@ -13,8 +13,12 @@ export default function TaskList({ title, icon, iconColor, count, tasks }) {
         </span>
       </div>
       <div className="space-y-3">
-        {tasks.map((task, index) => (
-          <TaskItem key={index} {...task} category={title.includes('Work') ? 'Work' : 'Personal'} />
+        {tasks.map((task) => (
+          <TaskItem
+            key={task.id}
+            {...task}
+            childTasks={childrenMap[task.id] || []}
+          />
         ))}
       </div>
     </section>

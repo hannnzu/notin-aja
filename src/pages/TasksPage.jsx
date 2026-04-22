@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import TaskList from '../components/TaskList';
 import KanbanBoard from '../components/KanbanBoard';
 import { useTaskStore } from '../store/useTaskStore';
@@ -71,7 +71,22 @@ export default function TasksPage() {
   };
 
   const filteredTasks = getFilteredTasks();
-  const categories = [...new Set(filteredTasks.map(t => t.category || 'Lainnya'))];
+
+  // Build parent→children map from ALL non-archived tasks (children always follow parent)
+  const childrenMap = useMemo(() => {
+    const map = {};
+    tasks.filter(t => !t.isArchived).forEach(t => {
+      if (t.parentId) {
+        if (!map[t.parentId]) map[t.parentId] = [];
+        map[t.parentId].push(t);
+      }
+    });
+    return map;
+  }, [tasks]);
+
+  // Only show root tasks in the list — children render under their parent
+  const rootFilteredTasks = filteredTasks.filter(t => !t.parentId);
+  const categories = [...new Set(rootFilteredTasks.map(t => t.category || 'Lainnya'))];
 
   // Right Sidebar Metrics
   const todayTasks = tasks.filter(t => !t.isArchived && (isTaskToday(t.dueDate) || t.isOverdue));
@@ -187,11 +202,16 @@ export default function TasksPage() {
           </div>
         ) : viewMode === 'board' ? (
           <div className="mt-4 h-[calc(100vh-200px)]">
-            <KanbanBoard tasks={filteredTasks} />
+            <KanbanBoard tasks={filteredTasks.filter(t => !t.parentId)} />
           </div>
         ) : (
           categories.map(category => {
-            const categoryTasks = filteredTasks.filter(t => (t.category || 'Lainnya') === category);
+            const categoryTasks = rootFilteredTasks.filter(t => (t.category || 'Lainnya') === category);
+            // Count includes incomplete children
+            const childCount = categoryTasks.reduce((acc, t) =>
+              acc + (childrenMap[t.id] || []).filter(c => !c.isCompleted).length, 0);
+            const count = categoryTasks.filter(t => !t.isCompleted).length + childCount;
+
             let icon = 'flag';
             let iconColor = 'text-slate-500';
             if (category === 'Pekerjaan') {
@@ -211,8 +231,9 @@ export default function TasksPage() {
                 title={category === 'Lainnya' ? 'Tugas Lainnya' : category}
                 icon={icon}
                 iconColor={iconColor}
-                count={categoryTasks.filter(t => !t.isCompleted).length}
+                count={count}
                 tasks={categoryTasks}
+                childrenMap={childrenMap}
               />
             );
           })

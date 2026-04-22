@@ -8,7 +8,7 @@ const COLUMNS = {
   'done': { title: 'Selesai', icon: 'check_circle', color: 'text-green-500' }
 };
 
-export default function KanbanBoard({ tasks }) {
+export default function KanbanBoard({ tasks, childrenMap = {} }) {
   const editTask = useTaskStore(state => state.editTask);
 
   const onDragEnd = (result) => {
@@ -64,7 +64,8 @@ export default function KanbanBoard({ tasks }) {
                           >
                             <TaskItem 
                               {...task} 
-                              isBoardView={true} 
+                              isBoardView={true}
+                              childTasks={childrenMap[task.id] || []}
                             />
                           </div>
                         )}

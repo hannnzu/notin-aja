@@ -32,7 +32,8 @@ export const useTaskStore = create((set, get) => ({
           isOverdue: isTaskOverdue(t.due_date, t.is_completed),
           dateCreatedAt: t.created_at,
           status: t.status || 'todo',
-          subtasks: t.subtasks || []
+          subtasks: t.subtasks || [],
+          parentId: t.parent_id || null
         });
 
         set((state) => {
@@ -99,7 +100,8 @@ export const useTaskStore = create((set, get) => ({
         isOverdue: isTaskOverdue(t.due_date, t.is_completed),
         dateCreatedAt: t.created_at,
         status: t.status || 'todo',
-        subtasks: t.subtasks || []
+        subtasks: t.subtasks || [],
+        parentId: t.parent_id || null
       }));
       set({ tasks: mappedTasks, isLoading: false });
 
@@ -121,7 +123,8 @@ export const useTaskStore = create((set, get) => ({
       priority: newTask.priority,
       due_date: newTask.dueDate,
       status: newTask.status || 'todo',
-      subtasks: newTask.subtasks || []
+      subtasks: newTask.subtasks || [],
+      parent_id: newTask.parentId || null
     };
 
     const { data, error } = await supabase
@@ -144,7 +147,8 @@ export const useTaskStore = create((set, get) => ({
         isOverdue: isTaskOverdue(data.due_date, data.is_completed),
         dateCreatedAt: data.created_at,
         status: data.status || 'todo',
-        subtasks: data.subtasks || []
+        subtasks: data.subtasks || [],
+        parentId: data.parent_id || null
       };
       set((state) => ({
         tasks: [addedTask, ...state.tasks],
@@ -165,6 +169,7 @@ export const useTaskStore = create((set, get) => ({
     if (updatedTask.dueDate !== undefined) dbUpdate.due_date = updatedTask.dueDate;
     if (updatedTask.status !== undefined) dbUpdate.status = updatedTask.status;
     if (updatedTask.subtasks !== undefined) dbUpdate.subtasks = updatedTask.subtasks;
+    if ('parentId' in updatedTask) dbUpdate.parent_id = updatedTask.parentId ?? null;
 
     const { error } = await supabase.from('tasks').update(dbUpdate).eq('id', id);
 
@@ -201,10 +206,16 @@ export const useTaskStore = create((set, get) => ({
   },
 
   archiveTask: async (id) => {
-    const previousTasks = [...get().tasks];
-    set((state) => ({ tasks: state.tasks.map(t => t.id === id ? { ...t, isArchived: true } : t) }));
+    // Cascade: juga arsipkan semua tugas anak
+    const children = get().tasks.filter(t => t.parentId === id);
+    const idsToArchive = [id, ...children.map(c => c.id)];
 
-    const { error } = await supabase.from('tasks').update({ is_archived: true }).eq('id', id);
+    const previousTasks = [...get().tasks];
+    set(state => ({
+      tasks: state.tasks.map(t => idsToArchive.includes(t.id) ? { ...t, isArchived: true } : t)
+    }));
+
+    const { error } = await supabase.from('tasks').update({ is_archived: true }).in('id', idsToArchive);
     if (error) set({ error: error.message, tasks: previousTasks });
   },
 
@@ -216,12 +227,50 @@ export const useTaskStore = create((set, get) => ({
     if (error) set({ error: error.message, tasks: previousTasks });
   },
 
-  deleteTaskPermanently: async (id) => {
-    // Optimistic UI for Delete
+  // Parent-Child Hierarchy Actions
+  setParent: async (childId, parentId) => {
     const previousTasks = [...get().tasks];
-    set((state) => ({ tasks: state.tasks.filter(t => t.id !== id) }));
+    // Optimistic update
+    set(state => ({
+      tasks: state.tasks.map(t => t.id === childId ? { ...t, parentId } : t)
+    }));
 
-    const { error } = await supabase.from('tasks').delete().eq('id', id);
+    const { error } = await supabase
+      .from('tasks')
+      .update({ parent_id: parentId })
+      .eq('id', childId);
+
+    if (error) {
+      set({ error: error.message, tasks: previousTasks });
+    }
+  },
+
+  detachParent: async (childId) => {
+    const previousTasks = [...get().tasks];
+    // Optimistic update
+    set(state => ({
+      tasks: state.tasks.map(t => t.id === childId ? { ...t, parentId: null } : t)
+    }));
+
+    const { error } = await supabase
+      .from('tasks')
+      .update({ parent_id: null })
+      .eq('id', childId);
+
+    if (error) {
+      set({ error: error.message, tasks: previousTasks });
+    }
+  },
+
+  deleteTaskPermanently: async (id) => {
+    // Cascade: juga hapus semua tugas anak
+    const children = get().tasks.filter(t => t.parentId === id);
+    const idsToDelete = [id, ...children.map(c => c.id)];
+
+    const previousTasks = [...get().tasks];
+    set(state => ({ tasks: state.tasks.filter(t => !idsToDelete.includes(t.id)) }));
+
+    const { error } = await supabase.from('tasks').delete().in('id', idsToDelete);
     if (error) {
       set({ error: error.message, tasks: previousTasks });
     }
@@ -260,7 +309,8 @@ export const useTaskStore = create((set, get) => ({
         isOverdue: isTaskOverdue(t.due_date, t.is_completed),
         dateCreatedAt: t.created_at,
         status: t.status || 'todo',
-        subtasks: t.subtasks || []
+        subtasks: t.subtasks || [],
+        parentId: t.parent_id || null
       }));
 
       set(state => {

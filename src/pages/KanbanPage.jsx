@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import KanbanBoard from '../components/KanbanBoard';
 import { useTaskStore } from '../store/useTaskStore';
 import { format } from 'date-fns';
@@ -17,6 +17,18 @@ export default function KanbanPage() {
   const currentDate = new Date();
 
   const activeTasks = tasks.filter(t => !t.isArchived);
+
+  // Build childrenMap untuk indikator badge di Kanban card
+  const childrenMap = useMemo(() => {
+    const map = {};
+    activeTasks.forEach(t => {
+      if (t.parentId) {
+        if (!map[t.parentId]) map[t.parentId] = [];
+        map[t.parentId].push(t);
+      }
+    });
+    return map;
+  }, [activeTasks]);
 
   const filteredTasks =
     categoryFilter === 'Semua'
@@ -118,7 +130,7 @@ export default function KanbanPage() {
       ) : (
         /* Kanban Board */
         <div className="flex-1 overflow-hidden">
-          <KanbanBoard tasks={filteredTasks} />
+          <KanbanBoard tasks={filteredTasks} childrenMap={childrenMap} />
         </div>
       )}
 
