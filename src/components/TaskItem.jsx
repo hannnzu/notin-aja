@@ -52,8 +52,8 @@ export default function TaskItem({
   return (
     <div>
       {/* Main task card */}
-      <div className={`task-row group bg-white dark:bg-slate-900 rounded-xl border transition-all hover:shadow-md flex
-        ${isBoardView ? 'flex-col p-3 shadow-sm' : 'p-3 md:p-4 items-center gap-3 md:gap-4'}
+      <div className={`task-row group bg-white dark:bg-slate-900 rounded-xl border transition-all hover:shadow-md flex flex-wrap sm:flex-nowrap
+        ${isBoardView ? 'flex-col p-3 shadow-sm' : 'p-3 md:p-4 items-start sm:items-center gap-3 md:gap-4'}
         ${isChild
           ? 'border-l-[3px] border-l-primary/40 border-slate-200 dark:border-slate-800 hover:border-l-primary/70'
           : 'border-slate-200 dark:border-slate-800 hover:border-primary/30'
@@ -114,7 +114,7 @@ export default function TaskItem({
 
         {/* Actions */}
         {!isBoardView && (
-          <div className="task-actions transition-opacity flex shrink-0 items-center gap-1 md:opacity-0 md:group-hover:opacity-100">
+          <div className="task-actions transition-opacity flex shrink-0 items-center gap-1 md:opacity-0 md:group-hover:opacity-100 mt-2 sm:mt-0 w-full sm:w-auto justify-end border-t border-slate-100 sm:border-0 pt-2 sm:pt-0">
             {hasChildren && (
               <button
                 onClick={() => setIsExpanded(!isExpanded)}

@@ -114,15 +114,15 @@ export default function TasksPage() {
   const prevMonth = () => setCurrentCalendarMonth(subMonths(currentCalendarMonth, 1));
 
   return (
-    <div className="max-w-[1440px] mx-auto flex gap-6 p-6 w-full relative">
-      <div className="flex-1">
-        <div className="mb-8 flex items-end justify-between">
+    <div className="max-w-[1440px] mx-auto flex flex-col xl:flex-row gap-6 p-4 md:p-6 w-full relative">
+      <div className="flex-1 w-full min-w-0">
+        <div className="mb-6 md:mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4 md:gap-0">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Tugas Saya</h1>
-            <p className="text-slate-500 mt-1 capitalize">{format(currentDate, 'EEEE, d MMMM', { locale: idLocale })}</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white">Tugas Saya</h1>
+            <p className="text-sm md:text-base text-slate-500 mt-1 capitalize">{format(currentDate, 'EEEE, d MMMM', { locale: idLocale })}</p>
           </div>
           
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 md:gap-3">
             {/* View Mode Toggle */}
             <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg border border-slate-200 dark:border-slate-700 shadow-inner">
               <button
@@ -142,21 +142,21 @@ export default function TasksPage() {
             </div>
 
             {/* Sort Dropdown */}
-            <div className="relative group">
-              <button className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors flex items-center gap-2 cursor-pointer shadow-sm">
-                <span className="material-symbols-outlined text-lg">sort</span> 
-                {sortOrder === 'default' ? 'Urutkan' : 'Tenggat Terdekat'}
+            <div className="relative group flex-1 md:flex-none">
+              <button className="w-full md:w-auto px-3 md:px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs md:text-sm font-medium hover:bg-slate-50 transition-colors flex items-center justify-center md:justify-start gap-1 md:gap-2 cursor-pointer shadow-sm">
+                <span className="material-symbols-outlined text-base md:text-lg">sort</span> 
+                <span className="truncate">{sortOrder === 'default' ? 'Urutkan' : 'Tenggat Terdekat'}</span>
               </button>
-              <div className="absolute right-0 mt-2 w-52 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20 py-1 overflow-hidden">
+              <div className="absolute right-0 mt-2 w-48 md:w-52 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20 py-1 overflow-hidden">
                 <button onClick={() => setSortOrder('default')} className={`w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors ${sortOrder === 'default' ? 'font-bold text-primary bg-primary/5' : 'text-slate-600 dark:text-slate-300'}`}>Tatanan Logis</button>
                 <button onClick={() => setSortOrder('dueDateAsc')} className={`w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors ${sortOrder === 'dueDateAsc' ? 'font-bold text-primary bg-primary/5' : 'text-slate-600 dark:text-slate-300'}`}>Tenggat Terdekat</button>
               </div>
             </div>
             
-            <div className="relative group">
-              <button className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors flex items-center gap-2 cursor-pointer shadow-sm">
-                <span className="material-symbols-outlined text-lg">filter_list</span> 
-                {statusFilter === 'all' ? 'Saring' : statusFilter === 'active' ? 'Belum Selesai' : 'Sudah Selesai'}
+            <div className="relative group flex-1 md:flex-none">
+              <button className="w-full md:w-auto px-3 md:px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs md:text-sm font-medium hover:bg-slate-50 transition-colors flex items-center justify-center md:justify-start gap-1 md:gap-2 cursor-pointer shadow-sm">
+                <span className="material-symbols-outlined text-base md:text-lg">filter_list</span> 
+                <span className="truncate">{statusFilter === 'all' ? 'Saring' : statusFilter === 'active' ? 'Belum Selesai' : 'Sudah Selesai'}</span>
               </button>
               <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20 py-1 overflow-hidden">
                 <button onClick={() => setStatusFilter('all')} className={`w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors ${statusFilter === 'all' ? 'font-bold text-primary bg-primary/5' : 'text-slate-600 dark:text-slate-300'}`}>Semua Status</button>

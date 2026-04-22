@@ -62,7 +62,7 @@ export default function Dashboard() {
   }, [tasks]);
 
   return (
-    <div className="p-8 max-w-7xl mx-auto w-full">
+    <div className="p-5 sm:p-6 md:p-8 pb-16 sm:pb-20 md:pb-8 max-w-7xl mx-auto w-full">
       {/* Greeting */}
       <div className="mb-8">
         <h2 className="text-3xl font-extrabold tracking-tight">Halo, {userName}!</h2>
