@@ -73,7 +73,7 @@ export default function LandingPage() {
 
           {/* Teks Penjelas Kiri (Absolute to Arena, Z-50) */}
           <div
-            className="hidden md:block absolute left-0 lg:left-[-5%] top-[65%] w-56 transition-all duration-700 pointer-events-none text-right z-50"
+            className="hidden md:block absolute left-0 lg:left-[-5%] top-[25%] w-56 transition-all duration-700 pointer-events-none text-right z-50"
             style={{
               opacity: scrollY > 100 ? 1 : 0,
               transform: `translateX(${scrollY > 100 ? '0px' : '-20px'})`
@@ -86,7 +86,7 @@ export default function LandingPage() {
 
           {/* Left Mockup Wrapper (Scroll Tracker) */}
           <div
-            className="absolute left-[5%] md:left-[22%] top-10 w-[300px] md:w-[350px] h-[80%] md:h-[90%] z-10 transition-transform duration-100 ease-linear"
+            className="absolute left-[5%] md:left-[25%] top-20 w-[300px] md:w-[350px] h-[80%] md:h-[90%] z-10 transition-transform duration-100 ease-linear"
             style={{
               transform: `translateX(-${Math.min(scrollY * 0.12, 120)}px) translateY(-${Math.min(scrollY * 0.08, 60)}px) rotateY(${5 + Math.min(scrollY * 0.03, 15)}deg) rotateX(5deg)`
             }}
@@ -133,7 +133,7 @@ export default function LandingPage() {
 
           {/* Teks Penjelas Kanan (Absolute to Arena, Z-50) */}
           <div
-            className="hidden md:block absolute right-0 lg:right-[-6%] top-1/2 w-56 transition-all duration-700 pointer-events-none text-left z-50"
+            className="hidden md:block absolute right-0 lg:right-[-8%] top-1/2 w-56 transition-all duration-700 pointer-events-none text-left z-50"
             style={{
               opacity: scrollY > 120 ? 1 : 0,
               transform: `translateX(${scrollY > 120 ? '0px' : '20px'})`
