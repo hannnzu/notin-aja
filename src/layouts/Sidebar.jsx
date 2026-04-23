@@ -1,5 +1,6 @@
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useTaskStore } from '../store/useTaskStore';
+import { isTaskToday } from '../utils/dateUtils';
 
 export default function Sidebar() {
   const navigate = useNavigate();
@@ -10,7 +11,7 @@ export default function Sidebar() {
 
   const tasks = useTaskStore(state => state.tasks);
   const inboxCount = tasks.filter(t => !t.isArchived).length;
-  const todayCount = tasks.filter(t => !t.isArchived && (t.dueDate === 'Hari Ini' || t.isOverdue)).length;
+  const todayCount = tasks.filter(t => !t.isArchived && (isTaskToday(t.dueDate) || t.isOverdue)).length;
   const openModal = useTaskStore(state => state.openModal);
 
   const isMobileMenuOpen = useTaskStore(state => state.isMobileMenuOpen);

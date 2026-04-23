@@ -70,6 +70,13 @@ export default function TaskFormModal() {
 
   const addSubtask = (title) => {
     if (!title.trim()) return;
+    // Cegah duplikasi — jika sudah ada sub-tugas dengan judul sama, skip
+    if (subtasks.some(s => s.title.toLowerCase() === title.trim().toLowerCase())) {
+      setNewSubtaskTitle('');
+      setShowSuggestions(false);
+      subtaskInputRef.current?.focus();
+      return;
+    }
     setSubtasks(prev => [...prev, { id: uuidv4(), title: title.trim(), isCompleted: false }]);
     setNewSubtaskTitle('');
     setShowSuggestions(false);
@@ -223,7 +230,7 @@ export default function TaskFormModal() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <input type="hidden" {...register('category')} />
             <input type="hidden" {...register('priority')} />
-            
+
             {/* Kategori */}
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
@@ -238,7 +245,7 @@ export default function TaskFormModal() {
                   <span className="truncate text-slate-800 dark:text-slate-200 font-medium">{categoryValue || 'Pilih Kategori'}</span>
                   <span className={`material-symbols-outlined text-slate-400 text-lg transition-transform ${openDropdown === 'category' ? 'rotate-180' : ''}`}>expand_more</span>
                 </button>
-                
+
                 {openDropdown === 'category' && (
                   <div className="absolute z-50 w-full mt-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl overflow-hidden py-1 animate-in fade-in zoom-in-95 duration-100">
                     {['Pekerjaan', 'Pribadi', 'Belanja', 'Lainnya'].map((cat) => (
@@ -277,7 +284,7 @@ export default function TaskFormModal() {
                   </span>
                   <span className={`material-symbols-outlined text-slate-400 text-lg transition-transform ${openDropdown === 'priority' ? 'rotate-180' : ''}`}>expand_more</span>
                 </button>
-                
+
                 {openDropdown === 'priority' && (
                   <div className="absolute z-50 w-full mt-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl overflow-hidden py-1 animate-in fade-in zoom-in-95 duration-100">
                     {['Rendah', 'Menengah', 'Prioritas Tinggi'].map((prio) => (
@@ -386,50 +393,50 @@ export default function TaskFormModal() {
                   <div className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm p-4">
                     <div className="flex items-center justify-between mb-4">
                       <button type="button" onClick={prevMonth} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 flex items-center justify-center transition-colors">
-                      <span className="material-symbols-outlined text-sm">chevron_left</span>
-                    </button>
-                    <p className="text-center font-bold text-sm capitalize">{format(currentCalendarMonth, 'MMMM yyyy', { locale: idLocale })}</p>
-                    <button type="button" onClick={nextMonth} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 flex items-center justify-center transition-colors">
-                      <span className="material-symbols-outlined text-sm">chevron_right</span>
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-7 gap-1 text-center mb-2">
-                    {['Sn', 'Sl', 'Rb', 'Km', 'Jm', 'Sb', 'Mg'].map(day => (
-                      <div key={day} className="text-[10px] font-bold text-slate-400 py-1">{day}</div>
-                    ))}
-                  </div>
-                  <div className="grid grid-cols-7 gap-1">
-                    {calendarDays.map((day, i) => {
-                      const isCurrentMonth = isSameMonth(day, monthStart);
-                      const isDayToday = isToday(day);
-                      const isSelected = dueDateValue && dueDateValue === format(day, 'yyyy-MM-dd');
-                      const isPast = isBefore(startOfDay(day), todayDate);
-                      
-                      return (
-                        <button
-                          key={i}
-                          type="button"
-                          disabled={isPast}
-                          onClick={() => {
-                            setValue('dueDate', format(day, 'yyyy-MM-dd'), { shouldValidate: true });
-                            setOpenDropdown(null);
-                          }}
-                          className={`
+                        <span className="material-symbols-outlined text-sm">chevron_left</span>
+                      </button>
+                      <p className="text-center font-bold text-sm capitalize">{format(currentCalendarMonth, 'MMMM yyyy', { locale: idLocale })}</p>
+                      <button type="button" onClick={nextMonth} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 flex items-center justify-center transition-colors">
+                        <span className="material-symbols-outlined text-sm">chevron_right</span>
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-7 gap-1 text-center mb-2">
+                      {['Sn', 'Sl', 'Rb', 'Km', 'Jm', 'Sb', 'Mg'].map(day => (
+                        <div key={day} className="text-[10px] font-bold text-slate-400 py-1">{day}</div>
+                      ))}
+                    </div>
+                    <div className="grid grid-cols-7 gap-1">
+                      {calendarDays.map((day, i) => {
+                        const isCurrentMonth = isSameMonth(day, monthStart);
+                        const isDayToday = isToday(day);
+                        const isSelected = dueDateValue && dueDateValue === format(day, 'yyyy-MM-dd');
+                        const isPast = isBefore(startOfDay(day), todayDate);
+
+                        return (
+                          <button
+                            key={i}
+                            type="button"
+                            disabled={isPast}
+                            onClick={() => {
+                              setValue('dueDate', format(day, 'yyyy-MM-dd'), { shouldValidate: true });
+                              setOpenDropdown(null);
+                            }}
+                            className={`
                             relative flex items-center justify-center h-8 w-8 rounded-lg text-xs transition-all mx-auto
                             ${isPast ? 'opacity-30 cursor-not-allowed text-slate-300 dark:text-slate-700' : 'hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer text-slate-700 dark:text-slate-200'}
                             ${!isCurrentMonth ? 'opacity-40 font-medium' : 'font-bold'}
                             ${isSelected ? '!bg-primary !text-white !opacity-100 shadow-sm shadow-primary/40' : ''}
                             ${isDayToday && !isSelected ? 'ring-2 ring-primary ring-offset-1 dark:ring-offset-slate-900 !text-primary' : ''}
                           `}
-                        >
-                          {format(day, 'd')}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center">
-                    <button type="button" onClick={() => { setValue('dueDate', format(todayDate, 'yyyy-MM-dd'), { shouldValidate: true }); setOpenDropdown(null); }} className="text-xs font-bold text-primary hover:underline px-2 py-1 rounded bg-primary/5 hover:bg-primary/10">Hari Ini</button>
-                    <button type="button" onClick={() => { setValue('dueDate', ''); setOpenDropdown(null); }} className="text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-white px-2 py-1">Hapus Tenggat</button>
+                          >
+                            {format(day, 'd')}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center">
+                      <button type="button" onClick={() => { setValue('dueDate', format(todayDate, 'yyyy-MM-dd'), { shouldValidate: true }); setOpenDropdown(null); }} className="text-xs font-bold text-primary hover:underline px-2 py-1 rounded bg-primary/5 hover:bg-primary/10">Hari Ini</button>
+                      <button type="button" onClick={() => { setValue('dueDate', ''); setOpenDropdown(null); }} className="text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-white px-2 py-1">Hapus Tenggat</button>
                     </div>
                   </div>
                 </div>

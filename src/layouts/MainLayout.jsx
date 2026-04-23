@@ -10,7 +10,7 @@ export default function MainLayout() {
       <main className="flex-1 flex flex-col overflow-y-auto">
         <TopNav />
         {/* Render child routes here */}
-        <div className="flex-1 flex flex-col relative w-full overflow-hidden">
+        <div className="flex-1 flex flex-col relative w-full overflow-y-auto">
           <Outlet />
         </div>
       </main>
