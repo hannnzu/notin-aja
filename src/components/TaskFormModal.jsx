@@ -32,6 +32,8 @@ export default function TaskFormModal() {
   const [subtasks, setSubtasks] = useState([]);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(-1);
+  const [subtaskError, setSubtaskError] = useState('');
   const subtaskInputRef = useRef(null);
 
   // Parent task state
@@ -70,16 +72,19 @@ export default function TaskFormModal() {
 
   const addSubtask = (title) => {
     if (!title.trim()) return;
-    // Cegah duplikasi — jika sudah ada sub-tugas dengan judul sama, skip
+    // Cegah duplikasi — jika sudah ada sub-tugas dengan judul sama, skip dan tampilkan error
     if (subtasks.some(s => s.title.toLowerCase() === title.trim().toLowerCase())) {
-      setNewSubtaskTitle('');
-      setShowSuggestions(false);
+      setSubtaskError('Sub-tugas ini sudah ada di dalam daftar!');
+      // Hilangkan error setelah 3 detik secara otomatis
+      setTimeout(() => setSubtaskError(''), 3000);
       subtaskInputRef.current?.focus();
       return;
     }
     setSubtasks(prev => [...prev, { id: uuidv4(), title: title.trim(), isCompleted: false }]);
     setNewSubtaskTitle('');
+    setSubtaskError('');
     setShowSuggestions(false);
+    setActiveSuggestionIndex(-1);
     subtaskInputRef.current?.focus();
   };
 
@@ -171,6 +176,9 @@ export default function TaskFormModal() {
       setSelectedParentId(null);
     }
     setNewSubtaskTitle('');
+    setShowSuggestions(false);
+    setActiveSuggestionIndex(-1);
+    setSubtaskError('');
   }, [editingTask, isModalOpen, reset]);
 
   if (!isModalOpen) return null;
@@ -451,7 +459,7 @@ export default function TaskFormModal() {
               Sub-Tugas <span className="text-slate-400 font-normal text-xs ml-1">({subtasks.filter(s => s.isCompleted).length}/{subtasks.length})</span>
             </label>
             {subtasks.length > 0 && (
-              <div className="space-y-2 mb-3 max-h-[150px] overflow-y-auto pr-1 custom-scrollbar">
+              <div className="space-y-2 mb-3 max-h-[220px] overflow-y-auto pr-1 custom-scrollbar">
                 {subtasks.map(st => (
                   <div key={st.id} className="flex items-center gap-2 group bg-slate-50 dark:bg-slate-800/50 p-2 rounded-lg border border-slate-100 dark:border-slate-800">
                     <button
@@ -467,7 +475,7 @@ export default function TaskFormModal() {
                     <button
                       type="button"
                       onClick={() => setSubtasks(subtasks.filter(s => s.id !== st.id))}
-                      className="w-6 h-6 flex items-center justify-center text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md"
+                      className="w-6 h-6 flex items-center justify-center text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 [@media(pointer:coarse)]:opacity-100 transition-opacity hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md"
                     >
                       <span className="material-symbols-outlined text-[16px]">close</span>
                     </button>
@@ -478,8 +486,19 @@ export default function TaskFormModal() {
 
             {/* Input + Autocomplete */}
             <div className="flex gap-2">
-              <div className="relative flex-1">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-[16px] text-slate-400 pointer-events-none">add_task</span>
+              <div
+                className="relative flex-1"
+                onBlur={(e) => {
+                  // Menutup suggestions hanya jika fokus berpindah keluar dari elemen dropdown/container autocomplete
+                  if (!e.currentTarget.contains(e.relatedTarget)) {
+                    setShowSuggestions(false);
+                    setActiveSuggestionIndex(-1);
+                  }
+                }}
+              >
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-[16px] text-slate-400 pointer-events-none">
+                  add_task
+                </span>
                 <input
                   ref={subtaskInputRef}
                   type="text"
@@ -487,32 +506,57 @@ export default function TaskFormModal() {
                   onChange={(e) => {
                     setNewSubtaskTitle(e.target.value);
                     setShowSuggestions(true);
+                    setActiveSuggestionIndex(-1); // Reset highlight saat mengetik
+                    if (subtaskError) setSubtaskError('');
                   }}
                   onFocus={() => setShowSuggestions(true)}
-                  onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
+                    if (e.key === 'ArrowDown') {
                       e.preventDefault();
-                      addSubtask(newSubtaskTitle);
+                      setShowSuggestions(true);
+                      setActiveSuggestionIndex(prev =>
+                        prev < subtaskSuggestions.length - 1 ? prev + 1 : prev
+                      );
+                    } else if (e.key === 'ArrowUp') {
+                      e.preventDefault();
+                      setActiveSuggestionIndex(prev => (prev > -1 ? prev - 1 : -1));
+                    } else if (e.key === 'Enter') {
+                      e.preventDefault();
+                      if (showSuggestions && activeSuggestionIndex >= 0 && activeSuggestionIndex < subtaskSuggestions.length) {
+                        // Jika ada saran yang disorot, pilih saran tersebut
+                        addSubtask(subtaskSuggestions[activeSuggestionIndex]);
+                      } else {
+                        // Jika tidak, tambahkan teks mentah dari input
+                        addSubtask(newSubtaskTitle);
+                      }
                     } else if (e.key === 'Escape') {
                       setShowSuggestions(false);
+                      setActiveSuggestionIndex(-1);
                     }
                   }}
                   placeholder="Ketik sub-tugas dan tekan Enter..."
-                  className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm placeholder:text-slate-400"
+                  className={`w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-800 border ${
+                    subtaskError ? 'border-red-500 ring-1 ring-red-500/20' : 'border-slate-200 dark:border-slate-700'
+                  } rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm placeholder:text-slate-400 transition-all`}
                 />
 
                 {/* Dropdown Saran */}
                 {showSuggestions && subtaskSuggestions.length > 0 && (
                   <div className="absolute z-50 left-0 right-0 mt-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-100">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 pt-2 pb-1">Pernah dipakai</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 pt-2 pb-1">
+                      Pernah dipakai
+                    </p>
                     {subtaskSuggestions.map((suggestion, idx) => (
                       <button
                         key={idx}
                         type="button"
-                        onMouseDown={(e) => e.preventDefault()} // cegah blur sebelum click
+                        onMouseDown={(e) => e.preventDefault()} // Cegah blur agar klik terdaftar instan
                         onClick={() => addSubtask(suggestion)}
-                        className="w-full text-left px-3 py-2 text-sm hover:bg-primary/5 hover:text-primary transition-colors flex items-center gap-2 text-slate-700 dark:text-slate-200"
+                        className={`w-full text-left px-3 py-2 text-sm transition-colors flex items-center gap-2 ${
+                          idx === activeSuggestionIndex
+                            ? 'bg-primary/10 text-primary font-semibold'
+                            : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200'
+                        }`}
                       >
                         <span className="material-symbols-outlined text-[14px] text-slate-400">history</span>
                         {suggestion}
@@ -530,6 +574,13 @@ export default function TaskFormModal() {
                 <span className="material-symbols-outlined text-[18px] leading-none">add</span>
               </button>
             </div>
+            {/* Pesan Mikro-Error Visual jika Terjadi Kesalahan (Misal: Duplikasi Input) */}
+            {subtaskError && (
+              <p className="text-red-500 text-xs flex items-center gap-1 mt-1.5 animate-in slide-in-from-top-1 duration-150">
+                <span className="material-symbols-outlined text-[14px]">error</span>
+                {subtaskError}
+              </p>
+            )}
           </div>
 
           <div className="flex items-center justify-end gap-3 pt-6 border-t border-slate-100 dark:border-slate-800 mt-6">
