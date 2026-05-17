@@ -3,6 +3,27 @@ import { supabase } from '../lib/supabase';
 import { useAuthStore } from './useAuthStore';
 import { isTaskOverdue } from '../utils/dateUtils';
 
+// Helper to recursively collect all descendant task IDs (children, grandchildren, etc.)
+const getDescendantIds = (tasks, parentId) => {
+  let descendants = [];
+  const children = tasks.filter(t => t.parentId === parentId);
+  children.forEach(child => {
+    descendants.push(child.id);
+    descendants = [...descendants, ...getDescendantIds(tasks, child.id)];
+  });
+  return descendants;
+};
+
+// Helper to check if setting parentId for childId would create a cycle (infinite loop)
+const wouldCreateCycle = (tasks, childId, potentialParentId) => {
+  if (!potentialParentId) return false;
+  if (childId === potentialParentId) return true;
+  
+  // If the potential parent is one of child's descendants, it's a cycle
+  const descendantIds = getDescendantIds(tasks, childId);
+  return descendantIds.includes(potentialParentId);
+};
+
 export const useTaskStore = create((set, get) => ({
   tasks: [],
   isLoading: false,
@@ -158,6 +179,19 @@ export const useTaskStore = create((set, get) => ({
   },
 
   editTask: async (id, updatedTask) => {
+    // If parentId is changing, validate to prevent cycles
+    if (updatedTask.parentId !== undefined && updatedTask.parentId !== null) {
+      if (id === updatedTask.parentId) {
+        set({ error: 'Tugas tidak bisa menjadi bagian dari dirinya sendiri.' });
+        return { success: false, error: 'Tugas tidak bisa menjadi bagian dari dirinya sendiri.' };
+      }
+      const currentTasks = get().tasks;
+      if (wouldCreateCycle(currentTasks, id, updatedTask.parentId)) {
+        set({ error: 'Hubungan melingkar terdeteksi! Tugas induk tidak boleh merupakan anak dari tugas ini.' });
+        return { success: false, error: 'Hubungan melingkar terdeteksi! Tugas induk tidak boleh merupakan anak dari tugas ini.' };
+      }
+    }
+
     set({ isLoading: true, error: null });
 
     // Map Frontend keys back to db columns
@@ -175,11 +209,13 @@ export const useTaskStore = create((set, get) => ({
 
     if (error) {
       set({ error: error.message, isLoading: false });
+      return { success: false, error: error.message };
     } else {
       set((state) => ({
         tasks: state.tasks.map(task => task.id === id ? { ...task, ...updatedTask } : task),
         isLoading: false
       }));
+      return { success: true };
     }
   },
 
@@ -187,28 +223,36 @@ export const useTaskStore = create((set, get) => ({
     const task = get().tasks.find(t => t.id === id);
     if (!task) return;
 
+    const nextCompletedState = !task.isCompleted;
+    const allTasks = get().tasks;
+    const descendants = getDescendantIds(allTasks, id);
+    const idsToUpdate = [id, ...descendants];
+
     // Optimistic UI Update 
     const previousTasks = [...get().tasks];
     set((state) => ({
       tasks: state.tasks.map(t => {
-        if (t.id === id) {
-          const completed = !t.isCompleted;
-          return { ...t, isCompleted: completed, isOverdue: isTaskOverdue(t.dueDate, completed) };
+        if (idsToUpdate.includes(t.id)) {
+          return { ...t, isCompleted: nextCompletedState, isOverdue: isTaskOverdue(t.dueDate, nextCompletedState) };
         }
         return t;
       })
     }));
 
-    const { error } = await supabase.from('tasks').update({ is_completed: !task.isCompleted }).eq('id', id);
+    const { error } = await supabase
+      .from('tasks')
+      .update({ is_completed: nextCompletedState })
+      .in('id', idsToUpdate);
+
     if (error) {
       set({ error: error.message, tasks: previousTasks });
     }
   },
 
   archiveTask: async (id) => {
-    // Cascade: juga arsipkan semua tugas anak
-    const children = get().tasks.filter(t => t.parentId === id);
-    const idsToArchive = [id, ...children.map(c => c.id)];
+    const allTasks = get().tasks;
+    const descendants = getDescendantIds(allTasks, id);
+    const idsToArchive = [id, ...descendants];
 
     const previousTasks = [...get().tasks];
     set(state => ({
@@ -220,15 +264,30 @@ export const useTaskStore = create((set, get) => ({
   },
 
   unarchiveTask: async (id) => {
-    const previousTasks = [...get().tasks];
-    set((state) => ({ tasks: state.tasks.map(t => t.id === id ? { ...t, isArchived: false } : t) }));
+    const allTasks = get().tasks;
+    const descendants = getDescendantIds(allTasks, id);
+    const idsToUnarchive = [id, ...descendants];
 
-    const { error } = await supabase.from('tasks').update({ is_archived: false }).eq('id', id);
+    const previousTasks = [...get().tasks];
+    set((state) => ({
+      tasks: state.tasks.map(t => idsToUnarchive.includes(t.id) ? { ...t, isArchived: false } : t)
+    }));
+
+    const { error } = await supabase.from('tasks').update({ is_archived: false }).in('id', idsToUnarchive);
     if (error) set({ error: error.message, tasks: previousTasks });
   },
 
   // Parent-Child Hierarchy Actions
   setParent: async (childId, parentId) => {
+    if (childId === parentId) {
+      return { success: false, error: 'Tugas tidak bisa menjadi bagian dari dirinya sendiri.' };
+    }
+
+    const currentTasks = get().tasks;
+    if (wouldCreateCycle(currentTasks, childId, parentId)) {
+      return { success: false, error: 'Hubungan melingkar terdeteksi! Tugas induk tidak boleh merupakan anak dari tugas ini.' };
+    }
+
     const previousTasks = [...get().tasks];
     // Optimistic update
     set(state => ({
@@ -242,7 +301,9 @@ export const useTaskStore = create((set, get) => ({
 
     if (error) {
       set({ error: error.message, tasks: previousTasks });
+      return { success: false, error: error.message };
     }
+    return { success: true };
   },
 
   detachParent: async (childId) => {
@@ -259,13 +320,15 @@ export const useTaskStore = create((set, get) => ({
 
     if (error) {
       set({ error: error.message, tasks: previousTasks });
+      return { success: false, error: error.message };
     }
+    return { success: true };
   },
 
   deleteTaskPermanently: async (id) => {
-    // Cascade: juga hapus semua tugas anak
-    const children = get().tasks.filter(t => t.parentId === id);
-    const idsToDelete = [id, ...children.map(c => c.id)];
+    const allTasks = get().tasks;
+    const descendants = getDescendantIds(allTasks, id);
+    const idsToDelete = [id, ...descendants];
 
     const previousTasks = [...get().tasks];
     set(state => ({ tasks: state.tasks.filter(t => !idsToDelete.includes(t.id)) }));
@@ -323,6 +386,15 @@ export const useTaskStore = create((set, get) => ({
         return { tasks: mergedTasks };
       });
     }
+  },
+
+  // Helper Selectors
+  getChildTasks: (parentId) => {
+    return get().tasks.filter(t => t.parentId === parentId);
+  },
+
+  getRootTasks: () => {
+    return get().tasks.filter(t => !t.parentId);
   },
 
   // Modal State

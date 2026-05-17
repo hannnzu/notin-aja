@@ -115,7 +115,7 @@ export default function TaskItem({
         {/* Actions */}
         {!isBoardView && (
           <div className="task-actions transition-opacity flex shrink-0 items-center gap-1 md:opacity-0 md:group-hover:opacity-100 mt-2 sm:mt-0 w-full sm:w-auto justify-end border-t border-slate-100 sm:border-0 pt-2 sm:pt-0">
-            {hasChildren && (
+            {showExpandCollapse && (
               <button
                 onClick={() => setIsExpanded(!isExpanded)}
                 className="p-1.5 text-slate-400 hover:text-primary hover:bg-primary/10 rounded-md transition-colors"
