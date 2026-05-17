@@ -25,7 +25,11 @@ export default function LandingPage() {
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_center,_rgba(201,168,76,0.15),_transparent_50%)] pointer-events-none"></div>
 
       {/* Header Nav */}
-      <header className="relative z-20 flex items-center justify-between px-6 md:px-12 py-6 border-b border-[#EDE9DF]/10">
+      <header className={`fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 md:px-12 py-4 md:py-5 transition-all duration-300 ${
+        scrollY > 50 
+          ? 'bg-[#1A1412]/80 backdrop-blur-md border-b border-[#EDE9DF]/10 shadow-lg' 
+          : 'bg-transparent border-b border-transparent'
+      }`}>
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-white overflow-hidden shadow-lg shadow-primary/20">
             <img src="/notin.png" alt="Logo" className="w-full h-full object-cover" />
@@ -35,7 +39,7 @@ export default function LandingPage() {
           </span>
         </div>
         <div className="flex items-center gap-6 text-sm font-medium tracking-wider uppercase">
-          <Link to="/login" className="text-[#9C7E74] hover:text-[#C9A84C] transition-colors hidden md:block">Masuk</Link>
+          <Link to="/login" className="text-[#E8E4D9]/70 hover:text-[#C9A84C] transition-colors hidden md:block">Masuk</Link>
           <Link to="/register" className="px-5 py-2.5 rounded-lg border border-[#B5A89A]/30 text-[#E8E4D9] hover:bg-white/5 hover:border-[#C9A84C] transition-all">
             Daftar Gratis
           </Link>
@@ -43,7 +47,7 @@ export default function LandingPage() {
       </header>
 
       {/* Hero Section */}
-      <main className="flex-1 relative z-10 flex flex-col items-center mt-12 md:mt-24 px-4">
+      <main className="flex-1 relative z-10 flex flex-col items-center pt-28 md:pt-36 px-4">
 
         {/* Copywriting */}
         <div className="max-w-4xl mx-auto text-center mb-16 relative z-30">
@@ -62,14 +66,14 @@ export default function LandingPage() {
             <Link to="/register" className="w-full sm:w-auto px-8 py-4 rounded-xl bg-[#C9A84C] text-[#3D2E2A] font-bold tracking-wider uppercase hover:bg-[#A8894A] transition-all shadow-[0_0_40px_-10px_rgba(201,168,76,0.5)]">
               Mulai Ruang Kerjamu
             </Link>
-            <Link to="/login" className="w-full sm:w-auto px-8 py-4 rounded-xl bg-transparent border border-[#9C7E74]/30 text-[#D6D1C4] font-medium tracking-wider uppercase hover:border-[#C9A84C] hover:text-[#C9A84C] transition-all">
+            <Link to="/login" className="w-full sm:w-auto px-8 py-4 rounded-xl bg-white/5 border border-[#EDE9DF]/30 text-[#E8E4D9] font-medium tracking-wider uppercase hover:border-[#C9A84C] hover:text-[#C9A84C] hover:bg-white/10 transition-all shadow-sm">
               Sudah Punya Akun?
             </Link>
           </div>
         </div>
 
         {/* Cinematic 3D Showcase Arena */}
-        <div className="relative w-full max-w-6xl mx-auto h-[450px] md:h-[650px] mt-10 perspective-[1200px] flex justify-center">
+        <div className="relative w-full max-w-6xl mx-auto h-[480px] md:h-[650px] mt-10 perspective-[1200px] flex justify-center overflow-hidden md:overflow-visible">
 
           {/* Teks Penjelas Kiri (Absolute to Arena, Z-50) */}
           <div
@@ -86,9 +90,9 @@ export default function LandingPage() {
 
           {/* Left Mockup Wrapper (Scroll Tracker) */}
           <div
-            className="absolute left-[5%] md:left-[25%] top-20 w-[300px] md:w-[350px] h-[80%] md:h-[90%] z-10 transition-transform duration-100 ease-linear"
+            className="absolute left-[-20px] sm:left-[5%] md:left-[25%] top-20 w-[240px] sm:w-[280px] md:w-[350px] h-[75%] md:h-[90%] z-10 transition-transform duration-100 ease-linear"
             style={{
-              transform: `translateX(-${Math.min(scrollY * 0.12, 120)}px) translateY(-${Math.min(scrollY * 0.08, 60)}px) rotateY(${5 + Math.min(scrollY * 0.03, 15)}deg) rotateX(5deg)`
+              transform: `translateX(-${Math.min(scrollY * 0.08, 60)}px) translateY(-${Math.min(scrollY * 0.05, 30)}px) rotateY(${5 + Math.min(scrollY * 0.02, 10)}deg) rotateX(5deg)`
             }}
           >
             {/* Float Animator */}
@@ -127,6 +131,11 @@ export default function LandingPage() {
                     </div>
                   </div>
                 </div>
+
+                {/* Mobile Caption Badge */}
+                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full border border-[#C9A84C]/30 bg-[#C9A84C]/10 text-[9px] font-bold tracking-wider uppercase text-[#A8894A] md:hidden shadow-sm backdrop-blur-sm">
+                  Indikator Cerdas
+                </div>
               </div>
             </div>
           </div>
@@ -146,9 +155,9 @@ export default function LandingPage() {
 
           {/* Right Mockup Wrapper (Scroll Tracker) */}
           <div
-            className="absolute right-[5%] md:right-[22%] top-0 w-[300px] md:w-[350px] h-[80%] md:h-[90%] z-20 transition-transform duration-100 ease-linear"
+            className="absolute right-[-20px] sm:right-[5%] md:right-[22%] top-0 w-[240px] sm:w-[280px] md:w-[350px] h-[80%] md:h-[90%] z-20 transition-transform duration-100 ease-linear"
             style={{
-              transform: `translateX(${Math.min(scrollY * 0.12, 120)}px) translateY(-${Math.min(scrollY * 0.12, 80)}px) rotateY(-${5 + Math.min(scrollY * 0.03, 15)}deg) rotateX(5deg)`
+              transform: `translateX(${Math.min(scrollY * 0.08, 60)}px) translateY(-${Math.min(scrollY * 0.08, 40)}px) rotateY(-${5 + Math.min(scrollY * 0.02, 10)}deg) rotateX(5deg)`
             }}
           >
             {/* Float Animator */}
@@ -191,6 +200,11 @@ export default function LandingPage() {
                     </div>
                     <div className="w-10 h-3 md:w-12 md:h-4 bg-yellow-900/30 rounded flex items-center justify-center shrink-0"><div className="w-6 md:w-8 h-1 md:h-1.5 bg-yellow-400 rounded-full"></div></div>
                   </div>
+                </div>
+
+                {/* Mobile Caption Badge */}
+                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full border border-[#C9A84C]/30 bg-[#C9A84C]/10 text-[9px] font-bold tracking-wider uppercase text-[#D9C48A] md:hidden shadow-sm backdrop-blur-sm">
+                  Status Terinci
                 </div>
               </div>
             </div>
