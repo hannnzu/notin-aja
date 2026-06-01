@@ -1,17 +1,20 @@
 import { useEffect, useMemo } from 'react';
 import { useTaskStore } from '../store/useTaskStore';
 import { useAuthStore } from '../store/useAuthStore';
+import { useCategoryStore } from '../store/useCategoryStore';
 import { isTaskToday } from '../utils/dateUtils';
 
 export default function Dashboard() {
   const { tasks, fetchTasks, isLoading, error, openModal } = useTaskStore();
   const { user } = useAuthStore();
+  const { fetchCategories, getCategoryColor: storeGetCategoryColor } = useCategoryStore();
 
   const userName = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split('@')[0] || '';
 
   useEffect(() => {
     fetchTasks();
-  }, [fetchTasks]);
+    fetchCategories();
+  }, [fetchTasks, fetchCategories]);
 
   const activeTasks = tasks.filter(t => !t.isArchived);
 
@@ -33,11 +36,13 @@ export default function Dashboard() {
 
   // Category Distribution Logic
   const getCategoryColor = (categoryName) => {
-    const l = categoryName?.toLowerCase() || '';
-    if (l === 'pekerjaan') return { bg: 'bg-blue-50', fill: 'bg-blue-500', text: 'text-blue-600', border: 'border-blue-100' };
-    if (l === 'pribadi') return { bg: 'bg-purple-50', fill: 'bg-purple-500', text: 'text-purple-600', border: 'border-purple-100' };
-    if (l === 'belanja') return { bg: 'bg-emerald-50', fill: 'bg-emerald-500', text: 'text-emerald-600', border: 'border-emerald-100' };
-    return { bg: 'bg-amber-50', fill: 'bg-amber-500', text: 'text-amber-600', border: 'border-amber-100' }; // Lainnya
+    const storeColor = storeGetCategoryColor(categoryName);
+    return {
+      bg: storeColor.light,
+      fill: storeColor.bg,
+      text: storeColor.text,
+      border: storeColor.light
+    };
   };
 
   const categoryStats = useMemo(() => {

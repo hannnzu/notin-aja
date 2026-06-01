@@ -5,9 +5,10 @@ import * as z from 'zod';
 import { useTaskStore } from '../store/useTaskStore';
 import { useCategoryStore, CATEGORY_COLOR_PALETTE } from '../store/useCategoryStore';
 import { getTodayDateString } from '../utils/dateUtils';
-import { startOfMonth, endOfMonth, eachDayOfInterval, format, isToday, startOfWeek, endOfWeek, isSameMonth, addMonths, subMonths, isBefore, startOfDay } from 'date-fns';
+import { startOfMonth, format, isToday, isSameMonth, isBefore, startOfDay } from 'date-fns';
 import idLocale from 'date-fns/locale/id';
 import { v4 as uuidv4 } from 'uuid';
+import { useCalendar } from '../hooks/useCalendar';
 
 const taskSchema = z.object({
   title: z.string().min(1, 'Judul tugas tidak boleh kosong'),
@@ -34,7 +35,14 @@ export default function TaskFormModal() {
   const [categoryError, setCategoryError] = useState('');
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const formRef = useRef(null);
-  const [currentCalendarMonth, setCurrentCalendarMonth] = useState(new Date());
+  const [activeTab, setActiveTab] = useState('info');
+  const {
+    currentCalendarMonth,
+    calendarDays,
+    nextMonth,
+    prevMonth,
+    setCurrentCalendarMonth
+  } = useCalendar();
 
   // Sub-tasks state
   const [subtasks, setSubtasks] = useState([]);
@@ -97,14 +105,10 @@ export default function TaskFormModal() {
   };
 
   const monthStart = startOfMonth(currentCalendarMonth);
-  const monthEnd = endOfMonth(monthStart);
-  const startDate = startOfWeek(monthStart, { weekStartsOn: 1 });
-  const endDate = endOfWeek(monthEnd, { weekStartsOn: 1 });
-  const calendarDays = eachDayOfInterval({ start: startDate, end: endDate });
   const todayDate = startOfDay(new Date());
 
-  const nextMonth = (e) => { e.stopPropagation(); setCurrentCalendarMonth(addMonths(currentCalendarMonth, 1)); };
-  const prevMonth = (e) => { e.stopPropagation(); setCurrentCalendarMonth(subMonths(currentCalendarMonth, 1)); };
+  const handleNextMonth = (e) => { e.stopPropagation(); nextMonth(); };
+  const handlePrevMonth = (e) => { e.stopPropagation(); prevMonth(); };
 
   const {
     register,
@@ -143,8 +147,18 @@ export default function TaskFormModal() {
   useEffect(() => {
     if (!isModalOpen) {
       setOpenDropdown(null);
+    } else {
+      setActiveTab('info');
+      setCurrentCalendarMonth(new Date());
     }
-  }, [isModalOpen]);
+  }, [isModalOpen, setCurrentCalendarMonth]);
+
+  // Redirect to info tab on validation error
+  useEffect(() => {
+    if (errors.title || errors.category || errors.priority || errors.dueDate) {
+      setActiveTab('info');
+    }
+  }, [errors]);
 
 
   useEffect(() => {
@@ -214,20 +228,21 @@ export default function TaskFormModal() {
   };
 
   const onSubmit = (data) => {
+    const isEditMode = !!(editingTask && editingTask.id);
     const taskData = {
       title: data.title,
       description: data.description || '',
       priority: data.priority,
       dueDate: data.dueDate || getTodayDateString(),
       category: data.category,
-      isCompleted: editingTask ? editingTask.isCompleted : false,
-      isArchived: editingTask ? editingTask.isArchived : false,
+      isCompleted: isEditMode ? editingTask.isCompleted : false,
+      isArchived: isEditMode ? editingTask.isArchived : false,
       subtasks: subtasks,
-      status: editingTask ? editingTask.status : 'todo',
+      status: editingTask?.status || 'todo',
       parentId: selectedParentId
     };
 
-    if (editingTask) {
+    if (isEditMode) {
       editTask(editingTask.id, taskData);
     } else {
       addTask(taskData);
@@ -236,12 +251,14 @@ export default function TaskFormModal() {
     closeModal();
   };
 
+  const isEditMode = !!(editingTask && editingTask.id);
+
   return (
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md shadow-2xl border border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in duration-200 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-4 border-b border-slate-100 dark:border-slate-800">
           <h2 className="text-lg font-bold">
-            {editingTask ? 'Edit Tugas' : 'Tambah Tugas Baru'}
+            {isEditMode ? 'Edit Tugas' : 'Tambah Tugas Baru'}
           </h2>
           <button
             onClick={closeModal}
@@ -251,8 +268,41 @@ export default function TaskFormModal() {
           </button>
         </div>
 
+        {/* Tab Selector */}
+        <div className="flex border-b border-slate-100 dark:border-slate-800 px-4">
+          <button
+            type="button"
+            onClick={() => setActiveTab('info')}
+            className={`flex-1 py-3 text-center text-sm font-bold border-b-2 transition-all ${
+              activeTab === 'info'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+            }`}
+          >
+            Info Utama
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('subtasks')}
+            className={`flex-1 py-3 text-center text-sm font-bold border-b-2 transition-all flex items-center justify-center gap-1.5 ${
+              activeTab === 'subtasks'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+            }`}
+          >
+            Sub-Tugas
+            {subtasks.length > 0 && (
+              <span className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                {subtasks.length}
+              </span>
+            )}
+          </button>
+        </div>
+
         <form onSubmit={handleSubmit(onSubmit)} className="p-4 space-y-4" ref={formRef}>
-          <div>
+          {activeTab === 'info' && (
+            <div className="space-y-4 animate-in fade-in duration-200">
+              <div>
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
               Judul Tugas
             </label>
@@ -523,11 +573,11 @@ export default function TaskFormModal() {
                 <div className="overflow-hidden">
                   <div className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm p-4">
                     <div className="flex items-center justify-between mb-4">
-                      <button type="button" onClick={prevMonth} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 flex items-center justify-center transition-colors">
+                      <button type="button" onClick={handlePrevMonth} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 flex items-center justify-center transition-colors">
                         <span className="material-symbols-outlined text-sm">chevron_left</span>
                       </button>
                       <p className="text-center font-bold text-sm capitalize">{format(currentCalendarMonth, 'MMMM yyyy', { locale: idLocale })}</p>
-                      <button type="button" onClick={nextMonth} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 flex items-center justify-center transition-colors">
+                      <button type="button" onClick={handleNextMonth} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 flex items-center justify-center transition-colors">
                         <span className="material-symbols-outlined text-sm">chevron_right</span>
                       </button>
                     </div>
@@ -575,8 +625,12 @@ export default function TaskFormModal() {
             </div>
             {errors.dueDate && <p className="text-red-500 text-xs mt-1">{errors.dueDate.message}</p>}
           </div>
+          </div>
+          )}
 
-          {/* Subtasks Section */}
+          {activeTab === 'subtasks' && (
+            <div className="space-y-4 animate-in fade-in duration-200">
+              {/* Subtasks Section */}
           <div className="pt-2">
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
               Sub-Tugas <span className="text-slate-400 font-normal text-xs ml-1">({subtasks.filter(s => s.isCompleted).length}/{subtasks.length})</span>
@@ -705,6 +759,8 @@ export default function TaskFormModal() {
               </p>
             )}
           </div>
+          </div>
+          )}
 
           <div className="flex items-center justify-end gap-3 pt-6 border-t border-slate-100 dark:border-slate-800 mt-6">
             <button

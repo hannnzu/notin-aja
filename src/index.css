@@ -16,4 +16,7 @@
   .task-row:hover .task-actions {
     opacity: 1;
   }
+  .perspective-\[1200px\] {
+    perspective: 1200px;
+  }
 }

@@ -10,6 +10,7 @@ const COLUMNS = {
 
 export default function KanbanBoard({ tasks, childrenMap = {} }) {
   const editTask = useTaskStore(state => state.editTask);
+  const openModal = useTaskStore(state => state.openModal);
 
   const onDragEnd = (result) => {
     const { destination, source, draggableId } = result;
@@ -75,6 +76,14 @@ export default function KanbanBoard({ tasks, childrenMap = {} }) {
                   </div>
                 )}
               </Droppable>
+
+              <button
+                onClick={() => openModal({ status: statusId })}
+                className="mt-3 w-full py-2.5 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-500 hover:text-primary dark:text-slate-400 dark:hover:text-primary border border-dashed border-slate-200 dark:border-slate-700 hover:border-primary/50 dark:hover:border-primary/50 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-sm"
+              >
+                <span className="material-symbols-outlined text-base">add</span>
+                Tambah Tugas
+              </button>
             </div>
           );
         })}

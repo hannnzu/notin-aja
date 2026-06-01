@@ -258,19 +258,6 @@ export default function LandingPage() {
       <footer className="relative z-30 border-t border-[#B5A89A]/10 py-8 text-center text-[#6B5147] text-xs md:text-sm tracking-wider uppercase">
         <p>&copy; {new Date().getFullYear()} Notin, Aja!.</p>
       </footer>
-
-      {/* Inline styles for custom animations that don't need a heavy tailwind config update */}
-      <style dangerouslySetInnerHTML={{
-        __html: `
-        @keyframes float {
-          0% { transform: translateY(0px); }
-          50% { transform: translateY(-20px); }
-          100% { transform: translateY(0px); }
-        }
-        .perspective-\\[1200px\\] {
-          perspective: 1200px;
-        }
-      `}} />
     </div>
   );
 }

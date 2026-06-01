@@ -52,6 +52,13 @@ export default function TaskItem({
     }
   };
 
+  const displayPriority = (prio) => {
+    if (prio === 'High Priority') return 'Prioritas Tinggi';
+    if (prio === 'Medium') return 'Menengah';
+    if (prio === 'Low') return 'Rendah';
+    return prio;
+  };
+
   const formattedDate = formatTaskDateDisplay(dueDate);
   const completedSubtasks = subtasks ? subtasks.filter(s => s.isCompleted).length : 0;
   const totalSubtasks = subtasks ? subtasks.length : 0;
@@ -68,26 +75,52 @@ export default function TaskItem({
         }
       `}>
         {/* Checkbox or Selection */}
-        <div className={`flex shrink-0 ${isBoardView ? 'justify-between items-start mb-2' : 'items-center justify-center'}`}>
-          {selectionMode && !isBoardView ? (
-            <button
-              onClick={() => onSelect?.(id)}
-              className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${
-                isSelected
-                  ? 'bg-primary border-primary text-white'
-                  : 'border-slate-300 dark:border-slate-600 hover:border-primary bg-white dark:bg-slate-900'
-              }`}
-            >
-              {isSelected && <span className="material-symbols-outlined text-[12px] font-bold">check</span>}
-            </button>
-          ) : (
-            <input
-              checked={isCompleted}
-              onChange={() => !selectionMode && toggleComplete(id)}
-              onClick={selectionMode ? () => onSelect?.(id) : undefined}
-              className={`w-5 h-5 rounded border-slate-300 text-primary focus:ring-primary/20 cursor-pointer ${isBoardView ? 'mt-0.5' : ''}`}
-              type="checkbox"
-            />
+        <div className={`flex shrink-0 ${isBoardView ? 'justify-between items-center mb-2 w-full' : 'items-center justify-center'}`}>
+          <div className="flex items-center gap-2">
+            {selectionMode && !isBoardView ? (
+              <button
+                onClick={() => onSelect?.(id)}
+                className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${
+                  isSelected
+                    ? 'bg-primary border-primary text-white'
+                    : 'border-slate-300 dark:border-slate-600 hover:border-primary bg-white dark:bg-slate-900'
+                }`}
+              >
+                {isSelected && <span className="material-symbols-outlined text-[12px] font-bold">check</span>}
+              </button>
+            ) : (
+              <input
+                checked={isCompleted}
+                onChange={() => !selectionMode && toggleComplete(id)}
+                onClick={selectionMode ? () => onSelect?.(id) : undefined}
+                className="w-5 h-5 rounded border-slate-300 text-primary focus:ring-primary/20 cursor-pointer"
+                type="checkbox"
+              />
+            )}
+            {isBoardView && priority && (
+              <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${getPriorityStyle(priority)}`}>
+                {displayPriority(priority)}
+              </span>
+            )}
+          </div>
+
+          {isBoardView && (
+            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 [@media(pointer:coarse)]:opacity-100 transition-opacity">
+              <button
+                onClick={() => openModal({ id, title, description, priority, dueDate, category, isCompleted, isArchived, subtasks, status })}
+                className="p-1 text-slate-400 hover:text-primary hover:bg-primary/10 rounded-md transition-colors"
+                title="Edit Tugas"
+              >
+                <span className="material-symbols-outlined text-lg">edit</span>
+              </button>
+              <button
+                className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md"
+                onClick={() => isArchived ? deleteTaskPermanently(id) : archiveTask(id)}
+                title={isArchived ? 'Hapus Permanen' : 'Arsipkan Tugas'}
+              >
+                <span className="material-symbols-outlined text-[16px]">delete</span>
+              </button>
+            </div>
           )}
         </div>
 
@@ -99,7 +132,7 @@ export default function TaskItem({
             </h4>
             {!isBoardView && priority && (
               <span className={`w-fit px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider shrink-0 ${getPriorityStyle(priority)}`}>
-                {priority}
+                {displayPriority(priority)}
               </span>
             )}
             {/* Children badge — tampil di semua view */}

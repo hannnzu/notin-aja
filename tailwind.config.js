@@ -39,6 +39,31 @@ export default {
         "xl": "0.75rem",
         "full": "9999px"
       },
+      boxShadow: {
+        'card': '0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)',
+        'card-hover': '0 4px 24px rgba(0,0,0,0.10)',
+        'modal': '0 24px 60px rgba(0,0,0,0.20)',
+        'primary': '0 4px 16px rgba(201,168,76,0.25)',
+      },
+      keyframes: {
+        float: {
+          '0%, 100%': { transform: 'translateY(0px)' },
+          '50%': { transform: 'translateY(-20px)' },
+        },
+        'slide-up': {
+          'from': { opacity: '0', transform: 'translateY(8px)' },
+          'to': { opacity: '1', transform: 'translateY(0)' },
+        },
+        'fade-in': {
+          'from': { opacity: '0' },
+          'to': { opacity: '1' },
+        },
+      },
+      animation: {
+        float: 'float 6s ease-in-out infinite',
+        'slide-up': 'slide-up 0.2s ease-out',
+        'fade-in': 'fade-in 0.2s ease-out',
+      },
     },
   },
   plugins: [

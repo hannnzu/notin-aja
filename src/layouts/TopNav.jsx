@@ -84,10 +84,21 @@ export default function TopNav() {
           <input
             value={searchQuery}
             onChange={handleSearchChange}
-            className="w-full pl-8 md:pl-10 pr-3 md:pr-4 py-1.5 md:py-2 bg-slate-100 dark:bg-slate-800 border-none rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-primary/20 placeholder:text-slate-500 transition-all focus:bg-white dark:focus:bg-slate-900"
+            className="w-full pl-8 md:pl-10 pr-8 md:pr-10 py-1.5 md:py-2 bg-slate-100 dark:bg-slate-800 border-none rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-primary/20 placeholder:text-slate-500 transition-all focus:bg-white dark:focus:bg-slate-900"
             placeholder="Cari tugas..."
             type="text"
           />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-2 md:right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 flex items-center justify-center"
+              title="Bersihkan pencarian"
+            >
+              <span className="material-symbols-outlined text-[16px] md:text-[18px]">
+                close
+              </span>
+            </button>
+          )}
         </div>
       </div>
       <div className="flex items-center gap-1 md:gap-3 shrink-0">

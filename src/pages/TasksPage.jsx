@@ -3,14 +3,20 @@ import TaskList from '../components/TaskList';
 import KanbanBoard from '../components/KanbanBoard';
 import { useTaskStore } from '../store/useTaskStore';
 import { isTaskToday } from '../utils/dateUtils';
-import { startOfMonth, endOfMonth, eachDayOfInterval, format, isToday, startOfWeek, endOfWeek, isSameMonth, addMonths, subMonths, parseISO } from 'date-fns';
+import { startOfMonth, format, isToday, isSameMonth, parseISO } from 'date-fns';
 import idLocale from 'date-fns/locale/id';
+import { useCalendar } from '../hooks/useCalendar';
 
 export default function TasksPage() {
   const { tasks, fetchTasks, isLoading, error, currentFilter, currentCategory, searchQuery, openModal,
     bulkArchive, bulkDelete, bulkUpdateStatus, bulkToggleComplete } = useTaskStore();
   const [showCalendar, setShowCalendar] = useState(false);
-  const [currentCalendarMonth, setCurrentCalendarMonth] = useState(new Date());
+  const {
+    currentCalendarMonth,
+    calendarDays,
+    nextMonth,
+    prevMonth
+  } = useCalendar();
   const [statusFilter, setStatusFilter] = useState('all');
   const [sortOrder, setSortOrder] = useState('default');
   const [viewMode, setViewMode] = useState('list'); // 'list' | 'board'
@@ -22,6 +28,12 @@ export default function TasksPage() {
 
   // Interactive calendar: filter by selected date
   const [calendarDateFilter, setCalendarDateFilter] = useState(null); // 'yyyy-MM-dd' or null
+
+  // Reset local filters when main category or filter changes
+  useEffect(() => {
+    setStatusFilter('all');
+    setCalendarDateFilter(null);
+  }, [currentCategory, currentFilter]);
 
   useEffect(() => {
     fetchTasks();
@@ -166,13 +178,6 @@ export default function TasksPage() {
   // Calendar Logic
   const currentDate = new Date();
   const monthStart = startOfMonth(currentCalendarMonth);
-  const monthEnd = endOfMonth(monthStart);
-  const startDate = startOfWeek(monthStart, { weekStartsOn: 1 });
-  const endDate = endOfWeek(monthEnd, { weekStartsOn: 1 });
-  const calendarDays = eachDayOfInterval({ start: startDate, end: endDate });
-
-  const nextMonth = () => setCurrentCalendarMonth(addMonths(currentCalendarMonth, 1));
-  const prevMonth = () => setCurrentCalendarMonth(subMonths(currentCalendarMonth, 1));
 
   return (
     <div className="max-w-[1440px] mx-auto flex flex-col xl:flex-row gap-6 p-4 md:p-6 w-full relative">
