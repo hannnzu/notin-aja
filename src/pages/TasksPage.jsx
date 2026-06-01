@@ -1,19 +1,27 @@
-import { useEffect, useState, useRef, useMemo } from 'react';
+import { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import TaskList from '../components/TaskList';
 import KanbanBoard from '../components/KanbanBoard';
 import { useTaskStore } from '../store/useTaskStore';
 import { isTaskToday } from '../utils/dateUtils';
-import { startOfMonth, endOfMonth, eachDayOfInterval, format, isToday, startOfWeek, endOfWeek, isSameMonth, addMonths, subMonths } from 'date-fns';
+import { startOfMonth, endOfMonth, eachDayOfInterval, format, isToday, startOfWeek, endOfWeek, isSameMonth, addMonths, subMonths, parseISO } from 'date-fns';
 import idLocale from 'date-fns/locale/id';
 
 export default function TasksPage() {
-  const { tasks, fetchTasks, isLoading, error, currentFilter, currentCategory, searchQuery, openModal } = useTaskStore();
+  const { tasks, fetchTasks, isLoading, error, currentFilter, currentCategory, searchQuery, openModal,
+    bulkArchive, bulkDelete, bulkUpdateStatus, bulkToggleComplete } = useTaskStore();
   const [showCalendar, setShowCalendar] = useState(false);
   const [currentCalendarMonth, setCurrentCalendarMonth] = useState(new Date());
   const [statusFilter, setStatusFilter] = useState('all');
   const [sortOrder, setSortOrder] = useState('default');
   const [viewMode, setViewMode] = useState('list'); // 'list' | 'board'
   const calendarRef = useRef(null);
+
+  // Bulk select state
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState([]);
+
+  // Interactive calendar: filter by selected date
+  const [calendarDateFilter, setCalendarDateFilter] = useState(null); // 'yyyy-MM-dd' or null
 
   useEffect(() => {
     fetchTasks();
@@ -58,6 +66,8 @@ export default function TasksPage() {
     }
 
     // Apply Sorting
+    const priorityOrder = { 'Prioritas Tinggi': 0, 'Menengah': 1, 'Rendah': 2 };
+
     if (sortOrder === 'dueDateAsc') {
       filtered = filtered.sort((a, b) => {
         if (!a.dueDate && !b.dueDate) return 0;
@@ -65,6 +75,21 @@ export default function TasksPage() {
         if (!b.dueDate || b.dueDate === 'Selesai') return -1;
         return new Date(a.dueDate) - new Date(b.dueDate);
       });
+    } else if (sortOrder === 'priorityDesc') {
+      filtered = filtered.sort((a, b) => {
+        const pa = priorityOrder[a.priority] ?? 99;
+        const pb = priorityOrder[b.priority] ?? 99;
+        return pa - pb;
+      });
+    } else if (sortOrder === 'categoryAsc') {
+      filtered = filtered.sort((a, b) =>
+        (a.category || '').localeCompare(b.category || '', 'id')
+      );
+    }
+
+    // Apply calendar date filter
+    if (calendarDateFilter) {
+      filtered = filtered.filter(t => t.dueDate === calendarDateFilter);
     }
 
     return filtered;
@@ -87,6 +112,42 @@ export default function TasksPage() {
   // Only show root tasks in the list — children render under their parent
   const rootFilteredTasks = filteredTasks.filter(t => !t.parentId);
   const categories = [...new Set(rootFilteredTasks.map(t => t.category || 'Lainnya'))];
+
+  // Bulk select handlers
+  const handleSelectTask = useCallback((id) => {
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  }, []);
+
+  const handleSelectAll = useCallback((ids, select) => {
+    setSelectedIds(prev =>
+      select
+        ? [...new Set([...prev, ...ids])]
+        : prev.filter(i => !ids.includes(i))
+    );
+  }, []);
+
+  const exitSelectionMode = () => {
+    setSelectionMode(false);
+    setSelectedIds([]);
+  };
+
+  const handleBulkArchive = async () => {
+    await bulkArchive(selectedIds);
+    exitSelectionMode();
+  };
+
+  const handleBulkDelete = async () => {
+    if (!window.confirm(`Hapus permanen ${selectedIds.length} tugas?`)) return;
+    await bulkDelete(selectedIds);
+    exitSelectionMode();
+  };
+
+  const handleBulkComplete = async () => {
+    await bulkToggleComplete(selectedIds, true);
+    exitSelectionMode();
+  };
 
   // Right Sidebar Metrics
   const todayTasks = tasks.filter(t => !t.isArchived && (isTaskToday(t.dueDate) || t.isOverdue));
@@ -123,33 +184,53 @@ export default function TasksPage() {
           </div>
           
           <div className="flex flex-wrap items-center gap-2 md:gap-3">
-            {/* View Mode Toggle */}
-            <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg border border-slate-200 dark:border-slate-700 shadow-inner">
-              <button
-                onClick={() => setViewMode('list')}
-                className={`p-1.5 rounded-md flex items-center justify-center transition-all ${viewMode === 'list' ? 'bg-white dark:bg-slate-900 shadow-sm text-primary' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
-                title="Tampilan Daftar"
-              >
-                <span className="material-symbols-outlined text-sm">view_list</span>
-              </button>
-              <button
-                onClick={() => setViewMode('board')}
-                className={`p-1.5 rounded-md flex items-center justify-center transition-all ${viewMode === 'board' ? 'bg-white dark:bg-slate-900 shadow-sm text-primary' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
-                title="Tampilan Papan Kanban"
-              >
-                <span className="material-symbols-outlined text-sm">view_kanban</span>
-              </button>
-            </div>
+              <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg border border-slate-200 dark:border-slate-700 shadow-inner">
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={`p-1.5 rounded-md flex items-center justify-center transition-all ${viewMode === 'list' ? 'bg-white dark:bg-slate-900 shadow-sm text-primary' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                  title="Tampilan Daftar"
+                >
+                  <span className="material-symbols-outlined text-sm">view_list</span>
+                </button>
+                <button
+                  onClick={() => setViewMode('board')}
+                  className={`p-1.5 rounded-md flex items-center justify-center transition-all ${viewMode === 'board' ? 'bg-white dark:bg-slate-900 shadow-sm text-primary' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                  title="Tampilan Papan Kanban"
+                >
+                  <span className="material-symbols-outlined text-sm">view_kanban</span>
+                </button>
+              </div>
+
+              {/* Select Mode Toggle */}
+              {viewMode === 'list' && (
+                <button
+                  onClick={() => { setSelectionMode(s => !s); setSelectedIds([]); }}
+                  className={`p-1.5 rounded-lg border transition-all flex items-center justify-center ${
+                    selectionMode
+                      ? 'bg-primary/10 border-primary/30 text-primary'
+                      : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 hover:text-slate-700'
+                  }`}
+                  title="Mode Pilih Massal"
+                >
+                  <span className="material-symbols-outlined text-sm">checklist</span>
+                </button>
+              )}
 
             {/* Sort Dropdown */}
             <div className="relative group flex-1 md:flex-none">
               <button className="w-full md:w-auto px-3 md:px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs md:text-sm font-medium hover:bg-slate-50 transition-colors flex items-center justify-center md:justify-start gap-1 md:gap-2 cursor-pointer shadow-sm">
                 <span className="material-symbols-outlined text-base md:text-lg">sort</span> 
-                <span className="truncate">{sortOrder === 'default' ? 'Urutkan' : 'Tenggat Terdekat'}</span>
+                <span className="truncate">
+                  {sortOrder === 'default' ? 'Urutkan' :
+                    sortOrder === 'dueDateAsc' ? 'Tenggat Terdekat' :
+                    sortOrder === 'priorityDesc' ? 'Prioritas Tertinggi' : 'Kategori A-Z'}
+                </span>
               </button>
               <div className="absolute right-0 mt-2 w-48 md:w-52 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20 py-1 overflow-hidden">
                 <button onClick={() => setSortOrder('default')} className={`w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors ${sortOrder === 'default' ? 'font-bold text-primary bg-primary/5' : 'text-slate-600 dark:text-slate-300'}`}>Tatanan Logis</button>
                 <button onClick={() => setSortOrder('dueDateAsc')} className={`w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors ${sortOrder === 'dueDateAsc' ? 'font-bold text-primary bg-primary/5' : 'text-slate-600 dark:text-slate-300'}`}>Tenggat Terdekat</button>
+                <button onClick={() => setSortOrder('priorityDesc')} className={`w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors ${sortOrder === 'priorityDesc' ? 'font-bold text-primary bg-primary/5' : 'text-slate-600 dark:text-slate-300'}`}>Prioritas Tertinggi</button>
+                <button onClick={() => setSortOrder('categoryAsc')} className={`w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors ${sortOrder === 'categoryAsc' ? 'font-bold text-primary bg-primary/5' : 'text-slate-600 dark:text-slate-300'}`}>Kategori A–Z</button>
               </div>
             </div>
             
@@ -207,23 +288,15 @@ export default function TasksPage() {
         ) : (
           categories.map(category => {
             const categoryTasks = rootFilteredTasks.filter(t => (t.category || 'Lainnya') === category);
-            // Count includes incomplete children
             const childCount = categoryTasks.reduce((acc, t) =>
               acc + (childrenMap[t.id] || []).filter(c => !c.isCompleted).length, 0);
             const count = categoryTasks.filter(t => !t.isCompleted).length + childCount;
 
             let icon = 'flag';
             let iconColor = 'text-slate-500';
-            if (category === 'Pekerjaan') {
-              icon = 'work';
-              iconColor = 'text-blue-500';
-            } else if (category === 'Pribadi') {
-              icon = 'person';
-              iconColor = 'text-orange-500';
-            } else if (category === 'Belanja') {
-              icon = 'shopping_cart';
-              iconColor = 'text-green-500';
-            }
+            if (category === 'Pekerjaan') { icon = 'work'; iconColor = 'text-blue-500'; }
+            else if (category === 'Pribadi') { icon = 'person'; iconColor = 'text-orange-500'; }
+            else if (category === 'Belanja') { icon = 'shopping_cart'; iconColor = 'text-green-500'; }
 
             return (
               <TaskList
@@ -234,9 +307,47 @@ export default function TasksPage() {
                 count={count}
                 tasks={categoryTasks}
                 childrenMap={childrenMap}
+                selectionMode={selectionMode}
+                selectedIds={selectedIds}
+                onSelectTask={handleSelectTask}
+                onSelectAll={handleSelectAll}
               />
             );
           })
+        )}
+
+        {/* Floating Bulk Action Toolbar */}
+        {selectionMode && selectedIds.length > 0 && (
+          <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-slate-900 dark:bg-slate-700 text-white px-4 py-3 rounded-2xl shadow-2xl border border-slate-700 dark:border-slate-600 animate-in slide-in-from-bottom-4 duration-200">
+            <span className="text-sm font-bold px-2 border-r border-slate-600 mr-1">{selectedIds.length} dipilih</span>
+            <button
+              onClick={handleBulkComplete}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-bold transition-colors"
+            >
+              <span className="material-symbols-outlined text-[16px]">task_alt</span>
+              Selesai
+            </button>
+            <button
+              onClick={handleBulkArchive}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-600 hover:bg-slate-500 text-white text-xs font-bold transition-colors"
+            >
+              <span className="material-symbols-outlined text-[16px]">archive</span>
+              Arsip
+            </button>
+            <button
+              onClick={handleBulkDelete}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-500 hover:bg-red-400 text-white text-xs font-bold transition-colors"
+            >
+              <span className="material-symbols-outlined text-[16px]">delete</span>
+              Hapus
+            </button>
+            <button
+              onClick={exitSelectionMode}
+              className="ml-1 p-1.5 rounded-xl hover:bg-slate-700 text-slate-300 transition-colors"
+            >
+              <span className="material-symbols-outlined text-[16px]">close</span>
+            </button>
+          </div>
         )}
 
         {/* Quick Add Floating (Mobile Only) */}
@@ -318,28 +429,67 @@ export default function TasksPage() {
                   {calendarDays.map((day, i) => {
                     const isCurrentMonth = isSameMonth(day, monthStart);
                     const isDayToday = isToday(day);
-                    
-                    const dayTasks = tasks.filter(t => !t.isArchived && !t.isCompleted && t.dueDate && t.dueDate === format(day, 'yyyy-MM-dd'));
+                    const dayStr = format(day, 'yyyy-MM-dd');
+                    const isFilteredDay = calendarDateFilter === dayStr;
+
+                    const dayTasks = tasks.filter(t => !t.isArchived && !t.isCompleted && t.dueDate === dayStr);
                     const hasTask = dayTasks.length > 0;
                     const hasUrgent = dayTasks.some(t => t.priority === 'Prioritas Tinggi');
 
+                    const handleDayClick = (e) => {
+                      e.stopPropagation();
+                      if (isFilteredDay) {
+                        setCalendarDateFilter(null);
+                        return;
+                      }
+                      if (hasTask) {
+                        setCalendarDateFilter(dayStr);
+                        setShowCalendar(false);
+                      } else if (isCurrentMonth) {
+                        openModal({ dueDate: dayStr });
+                        setShowCalendar(false);
+                      }
+                    };
+
                     return (
-                      <div
+                      <button
                         key={i}
+                        onClick={handleDayClick}
+                        title={hasTask ? `${dayTasks.length} tugas di tanggal ini` : isCurrentMonth ? 'Tambah tugas di tanggal ini' : ''}
                         className={`
-                          relative flex flex-col items-center justify-center h-8 w-8 rounded-lg text-xs hover:bg-slate-50 dark:hover:bg-slate-800 cursor-default transition-colors mx-auto
-                          ${!isCurrentMonth ? 'text-slate-300 dark:text-slate-600 font-medium' : 'text-slate-700 dark:text-slate-200 font-bold'}
-                          ${isDayToday ? 'ring-2 ring-primary ring-offset-1 dark:ring-offset-slate-900 text-primary' : ''}
+                          relative flex flex-col items-center justify-center h-8 w-8 rounded-lg text-xs transition-all mx-auto
+                          ${!isCurrentMonth ? 'text-slate-300 dark:text-slate-600 font-medium cursor-default' : 'font-bold cursor-pointer'}
+                          ${isDayToday && !isFilteredDay ? 'ring-2 ring-primary ring-offset-1 dark:ring-offset-slate-900 text-primary' : ''}
+                          ${isFilteredDay ? 'bg-primary text-white shadow-md shadow-primary/30' : isCurrentMonth ? 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800' : ''}
                         `}
                       >
                         <span className="z-10">{format(day, 'd')}</span>
                         {hasTask && (
-                          <div className={`absolute bottom-1 w-1 h-1 rounded-full ${hasUrgent ? 'bg-red-500' : 'bg-primary'}`}></div>
+                          <div className={`absolute bottom-0.5 flex items-center justify-center`}>
+                            <span className={`text-[8px] font-bold leading-none ${isFilteredDay ? 'text-white/80' : hasUrgent ? 'text-red-500' : 'text-primary'}`}>
+                              {dayTasks.length > 9 ? '9+' : dayTasks.length}
+                            </span>
+                          </div>
                         )}
-                      </div>
+                      </button>
                     );
                   })}
                 </div>
+
+                {/* Clear date filter info */}
+                {calendarDateFilter && (
+                  <div className="mt-3 flex items-center justify-between text-xs bg-primary/10 rounded-lg px-3 py-2">
+                    <span className="text-primary font-medium">
+                      Filter: {format(parseISO(calendarDateFilter), 'd MMM', { locale: idLocale })}
+                    </span>
+                    <button
+                      onClick={() => setCalendarDateFilter(null)}
+                      className="text-primary hover:text-primary/70"
+                    >
+                      <span className="material-symbols-outlined text-[14px]">close</span>
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>

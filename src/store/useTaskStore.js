@@ -45,6 +45,7 @@ export const useTaskStore = create((set, get) => ({
         const mapTask = (t) => ({
           id: t.id,
           title: t.title,
+          description: t.description || '',
           priority: t.priority,
           dueDate: t.due_date,
           category: t.category,
@@ -113,6 +114,7 @@ export const useTaskStore = create((set, get) => ({
       const mappedTasks = tasks.map(t => ({
         id: t.id,
         title: t.title,
+        description: t.description || '',
         priority: t.priority,
         dueDate: t.due_date,
         category: t.category,
@@ -140,6 +142,7 @@ export const useTaskStore = create((set, get) => ({
     const dbTask = {
       user_id: user.id,
       title: newTask.title,
+      description: newTask.description || null,
       category: newTask.category || newTask.project,
       priority: newTask.priority,
       due_date: newTask.dueDate,
@@ -160,6 +163,7 @@ export const useTaskStore = create((set, get) => ({
       const addedTask = {
         id: data.id,
         title: data.title,
+        description: data.description || '',
         priority: data.priority,
         dueDate: data.due_date,
         category: data.category,
@@ -197,6 +201,7 @@ export const useTaskStore = create((set, get) => ({
     // Map Frontend keys back to db columns
     const dbUpdate = {};
     if (updatedTask.title !== undefined) dbUpdate.title = updatedTask.title;
+    if ('description' in updatedTask) dbUpdate.description = updatedTask.description ?? null;
     if (updatedTask.category !== undefined) dbUpdate.category = updatedTask.category;
     else if (updatedTask.project !== undefined) dbUpdate.category = updatedTask.project;
     if (updatedTask.priority !== undefined) dbUpdate.priority = updatedTask.priority;
@@ -339,6 +344,45 @@ export const useTaskStore = create((set, get) => ({
     }
   },
 
+  // Bulk Actions
+  bulkArchive: async (ids) => {
+    if (!ids.length) return;
+    const previousTasks = [...get().tasks];
+    set(state => ({
+      tasks: state.tasks.map(t => ids.includes(t.id) ? { ...t, isArchived: true } : t)
+    }));
+    const { error } = await supabase.from('tasks').update({ is_archived: true }).in('id', ids);
+    if (error) set({ tasks: previousTasks, error: error.message });
+  },
+
+  bulkDelete: async (ids) => {
+    if (!ids.length) return;
+    const previousTasks = [...get().tasks];
+    set(state => ({ tasks: state.tasks.filter(t => !ids.includes(t.id)) }));
+    const { error } = await supabase.from('tasks').delete().in('id', ids);
+    if (error) set({ tasks: previousTasks, error: error.message });
+  },
+
+  bulkUpdateStatus: async (ids, status) => {
+    if (!ids.length) return;
+    const previousTasks = [...get().tasks];
+    set(state => ({
+      tasks: state.tasks.map(t => ids.includes(t.id) ? { ...t, status } : t)
+    }));
+    const { error } = await supabase.from('tasks').update({ status }).in('id', ids);
+    if (error) set({ tasks: previousTasks, error: error.message });
+  },
+
+  bulkToggleComplete: async (ids, isCompleted) => {
+    if (!ids.length) return;
+    const previousTasks = [...get().tasks];
+    set(state => ({
+      tasks: state.tasks.map(t => ids.includes(t.id) ? { ...t, isCompleted } : t)
+    }));
+    const { error } = await supabase.from('tasks').update({ is_completed: isCompleted }).in('id', ids);
+    if (error) set({ tasks: previousTasks, error: error.message });
+  },
+
   // Filtering & Setup
   currentFilter: 'inbox', // 'inbox', 'today', 'important'
   currentCategory: 'all', // 'all', 'Pekerjaan', 'Pribadi', 'Belanja'
@@ -364,6 +408,7 @@ export const useTaskStore = create((set, get) => ({
       const mappedResults = searchResults.map(t => ({
         id: t.id,
         title: t.title,
+        description: t.description || '',
         priority: t.priority,
         dueDate: t.due_date,
         category: t.category,

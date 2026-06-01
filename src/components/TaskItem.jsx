@@ -5,6 +5,7 @@ import { formatTaskDateDisplay } from '../utils/dateUtils';
 export default function TaskItem({
   id,
   title,
+  description = '',
   priority,
   dueDate,
   category,
@@ -16,6 +17,9 @@ export default function TaskItem({
   isBoardView = false,
   childTasks = [],
   isChild = false,
+  selectionMode = false,
+  isSelected = false,
+  onSelect,
 }) {
   const toggleComplete = useTaskStore(state => state.toggleComplete);
   const archiveTask = useTaskStore(state => state.archiveTask);
@@ -24,6 +28,9 @@ export default function TaskItem({
   const openModal = useTaskStore(state => state.openModal);
 
   const [isExpanded, setIsExpanded] = useState(true);
+  const [showDescription, setShowDescription] = useState(false);
+
+  const hasDescription = description && description.trim().length > 0;
 
   const hasChildren = childTasks.length > 0;
   const showExpandCollapse = !isBoardView && hasChildren;
@@ -48,6 +55,7 @@ export default function TaskItem({
   const formattedDate = formatTaskDateDisplay(dueDate);
   const completedSubtasks = subtasks ? subtasks.filter(s => s.isCompleted).length : 0;
   const totalSubtasks = subtasks ? subtasks.length : 0;
+  const subtaskProgress = totalSubtasks > 0 ? Math.round((completedSubtasks / totalSubtasks) * 100) : 0;
 
   return (
     <div>
@@ -59,14 +67,28 @@ export default function TaskItem({
           : 'border-slate-200 dark:border-slate-800 hover:border-primary/30'
         }
       `}>
-        {/* Checkbox */}
+        {/* Checkbox or Selection */}
         <div className={`flex shrink-0 ${isBoardView ? 'justify-between items-start mb-2' : 'items-center justify-center'}`}>
-          <input
-            checked={isCompleted}
-            onChange={() => toggleComplete(id)}
-            className={`w-5 h-5 rounded border-slate-300 text-primary focus:ring-primary/20 cursor-pointer ${isBoardView ? 'mt-0.5' : ''}`}
-            type="checkbox"
-          />
+          {selectionMode && !isBoardView ? (
+            <button
+              onClick={() => onSelect?.(id)}
+              className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${
+                isSelected
+                  ? 'bg-primary border-primary text-white'
+                  : 'border-slate-300 dark:border-slate-600 hover:border-primary bg-white dark:bg-slate-900'
+              }`}
+            >
+              {isSelected && <span className="material-symbols-outlined text-[12px] font-bold">check</span>}
+            </button>
+          ) : (
+            <input
+              checked={isCompleted}
+              onChange={() => !selectionMode && toggleComplete(id)}
+              onClick={selectionMode ? () => onSelect?.(id) : undefined}
+              className={`w-5 h-5 rounded border-slate-300 text-primary focus:ring-primary/20 cursor-pointer ${isBoardView ? 'mt-0.5' : ''}`}
+              type="checkbox"
+            />
+          )}
         </div>
 
         {/* Content */}
@@ -110,6 +132,47 @@ export default function TaskItem({
               </span>
             )}
           </div>
+
+          {/* Subtask Progress Bar */}
+          {totalSubtasks > 0 && (
+            <div className="mt-2.5">
+              <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-500 ${
+                    subtaskProgress === 100 ? 'bg-emerald-500' : 'bg-primary'
+                  }`}
+                  style={{ width: `${subtaskProgress}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Description — List View Only */}
+          {!isBoardView && hasDescription && (
+            <div className="mt-2">
+              <button
+                onClick={() => setShowDescription(v => !v)}
+                className="flex items-center gap-1 text-[11px] text-slate-400 hover:text-primary transition-colors"
+              >
+                <span className="material-symbols-outlined text-[13px]">
+                  {showDescription ? 'expand_less' : 'notes'}
+                </span>
+                {showDescription ? 'Sembunyikan catatan' : 'Lihat catatan'}
+              </button>
+              {showDescription && (
+                <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400 leading-relaxed bg-slate-50 dark:bg-slate-800/60 rounded-lg px-3 py-2 border border-slate-100 dark:border-slate-800 whitespace-pre-wrap">
+                  {description}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Description Preview — Board View */}
+          {isBoardView && hasDescription && (
+            <p className="mt-1.5 text-[11px] text-slate-400 line-clamp-2 leading-relaxed">
+              {description}
+            </p>
+          )}
         </div>
 
         {/* Actions */}
@@ -128,7 +191,7 @@ export default function TaskItem({
             )}
             {!isArchived && (
               <button
-                onClick={() => openModal({ id, title, priority, dueDate, category, isCompleted, isArchived, subtasks, status })}
+                onClick={() => openModal({ id, title, description, priority, dueDate, category, isCompleted, isArchived, subtasks, status })}
                 className="p-1.5 text-slate-400 hover:text-primary hover:bg-primary/10 rounded-md transition-colors"
               >
                 <span className="material-symbols-outlined text-xl">edit</span>

@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useTaskStore } from '../store/useTaskStore';
+import { useCategoryStore, CATEGORY_COLOR_PALETTE } from '../store/useCategoryStore';
 import { getTodayDateString } from '../utils/dateUtils';
 import { startOfMonth, endOfMonth, eachDayOfInterval, format, isToday, startOfWeek, endOfWeek, isSameMonth, addMonths, subMonths, isBefore, startOfDay } from 'date-fns';
 import idLocale from 'date-fns/locale/id';
@@ -10,6 +11,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 const taskSchema = z.object({
   title: z.string().min(1, 'Judul tugas tidak boleh kosong'),
+  description: z.string().max(500, 'Deskripsi maksimal 500 karakter').optional(),
   priority: z.enum(['Rendah', 'Menengah', 'Prioritas Tinggi']),
   category: z.string().min(1, 'Kategori wajib diisi'),
   dueDate: z.string().optional()
@@ -23,8 +25,14 @@ export default function TaskFormModal() {
   const editTask = useTaskStore(state => state.editTask);
   const isLoading = useTaskStore(state => state.isLoading);
   const allTasks = useTaskStore(state => state.tasks);
+  const categories = useCategoryStore(state => state.categories);
+  const addCategory = useCategoryStore(state => state.addCategory);
 
   const [openDropdown, setOpenDropdown] = useState(null);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategoryColor, setNewCategoryColor] = useState(3);
+  const [categoryError, setCategoryError] = useState('');
+  const [isAddingCategory, setIsAddingCategory] = useState(false);
   const formRef = useRef(null);
   const [currentCalendarMonth, setCurrentCalendarMonth] = useState(new Date());
 
@@ -109,6 +117,7 @@ export default function TaskFormModal() {
     resolver: zodResolver(taskSchema),
     defaultValues: {
       title: '',
+      description: '',
       priority: 'Rendah',
       category: 'Pekerjaan',
       dueDate: ''
@@ -118,6 +127,7 @@ export default function TaskFormModal() {
   const categoryValue = watch('category');
   const priorityValue = watch('priority');
   const dueDateValue = watch('dueDate');
+  const descriptionValue = watch('description') || '';
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -159,6 +169,7 @@ export default function TaskFormModal() {
 
       reset({
         title: editingTask.title || '',
+        description: editingTask.description || '',
         priority: normPriority(editingTask.priority),
         category: normCategory(editingTask.category),
         dueDate: editingTask.dueDate || ''
@@ -168,6 +179,7 @@ export default function TaskFormModal() {
     } else {
       reset({
         title: '',
+        description: '',
         priority: 'Rendah',
         category: 'Pekerjaan',
         dueDate: ''
@@ -179,13 +191,32 @@ export default function TaskFormModal() {
     setShowSuggestions(false);
     setActiveSuggestionIndex(-1);
     setSubtaskError('');
+    setIsAddingCategory(false);
+    setNewCategoryName('');
+    setCategoryError('');
   }, [editingTask, isModalOpen, reset]);
 
   if (!isModalOpen) return null;
 
+  const handleAddCategory = async () => {
+    if (!newCategoryName.trim()) return;
+    const result = await addCategory(newCategoryName, newCategoryColor);
+    if (result.success) {
+      setValue('category', result.category.name, { shouldValidate: true });
+      setIsAddingCategory(false);
+      setNewCategoryName('');
+      setNewCategoryColor(3);
+      setCategoryError('');
+      setOpenDropdown(null);
+    } else {
+      setCategoryError(result.error || 'Gagal menambah kategori.');
+    }
+  };
+
   const onSubmit = (data) => {
     const taskData = {
       title: data.title,
+      description: data.description || '',
       priority: data.priority,
       dueDate: data.dueDate || getTodayDateString(),
       category: data.category,
@@ -235,6 +266,31 @@ export default function TaskFormModal() {
             {errors.title && <p className="text-red-500 text-xs mt-1">{errors.title.message}</p>}
           </div>
 
+          {/* Deskripsi / Notes */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+              Deskripsi
+              <span className="text-slate-400 font-normal text-xs ml-1">(Opsional)</span>
+            </label>
+            <div className="relative">
+              <textarea
+                {...register('description')}
+                placeholder="Tambahkan catatan, konteks, atau detail tugas..."
+                rows={3}
+                maxLength={500}
+                className={`w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border ${
+                  errors.description ? 'border-red-500' : 'border-slate-200 dark:border-slate-700'
+                } rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm resize-none placeholder:text-slate-400 transition-all`}
+              />
+              <span className={`absolute bottom-2 right-3 text-[10px] font-medium ${
+                descriptionValue.length > 450 ? 'text-amber-500' : 'text-slate-400'
+              }`}>
+                {descriptionValue.length}/500
+              </span>
+            </div>
+            {errors.description && <p className="text-red-500 text-xs mt-1">{errors.description.message}</p>}
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <input type="hidden" {...register('category')} />
             <input type="hidden" {...register('priority')} />
@@ -255,21 +311,88 @@ export default function TaskFormModal() {
                 </button>
 
                 {openDropdown === 'category' && (
-                  <div className="absolute z-50 w-full mt-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl overflow-hidden py-1 animate-in fade-in zoom-in-95 duration-100">
-                    {['Pekerjaan', 'Pribadi', 'Belanja', 'Lainnya'].map((cat) => (
-                      <button
-                        key={cat}
-                        type="button"
-                        onClick={() => {
-                          setValue('category', cat, { shouldValidate: true });
-                          setOpenDropdown(null);
-                        }}
-                        className={`w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center justify-between ${categoryValue === cat ? 'font-bold text-primary bg-primary/5' : 'text-slate-600 dark:text-slate-300'}`}
-                      >
-                        <span className="truncate">{cat}</span>
-                        {categoryValue === cat && <span className="material-symbols-outlined text-[16px]">check</span>}
-                      </button>
-                    ))}
+                  <div className="absolute z-50 w-full mt-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl overflow-hidden py-1 animate-in fade-in zoom-in-95 duration-100 max-h-64 overflow-y-auto">
+                    {categories.map((cat) => {
+                      const color = CATEGORY_COLOR_PALETTE[cat.colorIndex ?? 3];
+                      return (
+                        <button
+                          key={cat.id}
+                          type="button"
+                          onClick={() => {
+                            setValue('category', cat.name, { shouldValidate: true });
+                            setOpenDropdown(null);
+                            setIsAddingCategory(false);
+                          }}
+                          className={`w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center justify-between ${categoryValue === cat.name ? 'font-bold text-primary bg-primary/5' : 'text-slate-600 dark:text-slate-300'}`}
+                        >
+                          <span className="flex items-center gap-2.5 truncate">
+                            <span className={`w-2.5 h-2.5 rounded-full ${color.bg} shrink-0`}></span>
+                            <span className="truncate">{cat.name}</span>
+                          </span>
+                          {categoryValue === cat.name && <span className="material-symbols-outlined text-[16px]">check</span>}
+                        </button>
+                      );
+                    })}
+
+                    {/* Tambah Kategori Baru */}
+                    <div className="border-t border-slate-100 dark:border-slate-800 mt-1 pt-1">
+                      {!isAddingCategory ? (
+                        <button
+                          type="button"
+                          onClick={() => setIsAddingCategory(true)}
+                          className="w-full text-left px-4 py-2.5 text-sm text-primary hover:bg-primary/5 transition-colors flex items-center gap-2"
+                        >
+                          <span className="material-symbols-outlined text-[16px]">add_circle</span>
+                          Tambah Kategori Baru
+                        </button>
+                      ) : (
+                        <div className="p-3 space-y-2">
+                          <input
+                            type="text"
+                            autoFocus
+                            value={newCategoryName}
+                            onChange={e => { setNewCategoryName(e.target.value); setCategoryError(''); }}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') { e.preventDefault(); handleAddCategory(); }
+                              if (e.key === 'Escape') { setIsAddingCategory(false); setNewCategoryName(''); }
+                            }}
+                            placeholder="Nama kategori baru..."
+                            className="w-full px-3 py-1.5 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
+                          />
+                          {/* Color picker */}
+                          <div className="flex gap-1.5 flex-wrap">
+                            {CATEGORY_COLOR_PALETTE.map((c, idx) => (
+                              <button
+                                key={idx}
+                                type="button"
+                                onClick={() => setNewCategoryColor(idx)}
+                                className={`w-5 h-5 rounded-full ${c.bg} transition-all ${
+                                  newCategoryColor === idx ? 'ring-2 ring-offset-1 ring-slate-400 scale-110' : 'opacity-70 hover:opacity-100'
+                                }`}
+                              />
+                            ))}
+                          </div>
+                          {categoryError && <p className="text-red-500 text-xs">{categoryError}</p>}
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={handleAddCategory}
+                              disabled={!newCategoryName.trim()}
+                              className="flex-1 py-1.5 bg-primary text-white text-xs font-bold rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                            >
+                              Simpan
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => { setIsAddingCategory(false); setNewCategoryName(''); setCategoryError(''); }}
+                              className="px-3 py-1.5 text-xs text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                            >
+                              Batal
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
