@@ -22,7 +22,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+*.sql
 
 # Local workspace rules
 GEMINI.md
-produc
+PRD.md
+SRS.md
+BRD.md
